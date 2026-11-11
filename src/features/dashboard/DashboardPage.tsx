@@ -1,36 +1,72 @@
 import {
   Add,
-  CloudUpload,
+  Backup,
   ContentCopy,
   Delete,
   Description,
+  DriveFileRenameOutline,
   EditOutlined,
+  FileDownload,
+  FileUpload,
   Insights,
   MoreHoriz,
-  DriveFileRenameOutline,
+  TrackChanges,
 } from "@mui/icons-material";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
+  ListItemIcon,
+  ListItemText,
   Menu,
   MenuItem,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { createEmptyResume, type Resume } from "../../domain/resume/types";
-import { resumeRepository } from "../../domain/resume/repository";
-import { importResumeFile } from "../resume-import/parseResume";
+import type { Resume } from "../../domain/resume/types";
+import {
+  resumeRepository,
+  type ResumeBackup,
+} from "../../domain/resume/repository";
+import {
+  analyzeResume,
+  MIN_JOB_DESCRIPTION_LENGTH,
+} from "../ats-checker/analyze";
+import type { EditorLocationState } from "../resume-editor/EditorPage";
+import { useStartResume } from "../start/startResumeContext";
+
+/** How long the "Undo" option stays available after a delete. */
+const UNDO_WINDOW_MS = 8000;
+
+function jobMatchScore(resume: Resume) {
+  const description = resume.targetJob?.description ?? "";
+  return description.trim().length > MIN_JOB_DESCRIPTION_LENGTH
+    ? analyzeResume(resume, description).score
+    : null;
+}
+
+function downloadJson(fileName: string, data: unknown) {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export function DashboardPage() {
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -38,14 +74,20 @@ export function DashboardPage() {
   const [storageError, setStorageError] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuResume, setMenuResume] = useState<Resume | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [backupAnchor, setBackupAnchor] = useState<HTMLElement | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState("");
-  const [importPreview, setImportPreview] = useState<Resume | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [tailorOpen, setTailorOpen] = useState(false);
+  const [tailorTitle, setTailorTitle] = useState("");
+  const [tailorDescription, setTailorDescription] = useState("");
+  const [deleted, setDeleted] = useState<ResumeBackup | null>(null);
+  const [message, setMessage] = useState<{
+    severity: "success" | "error";
+    text: string;
+  } | null>(null);
+  const backupInput = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { openStartResume } = useStartResume();
 
   async function refresh() {
     try {
@@ -79,18 +121,34 @@ export function DashboardPage() {
     };
   }, []);
 
-  async function createResume() {
-    const resume = createEmptyResume();
-    await resumeRepository.save(resume);
-    navigate(`/resume/${resume.id}`);
+  function closeMenu() {
+    setMenuAnchor(null);
   }
 
   async function deleteResume() {
     if (!menuResume) return;
-    await resumeRepository.remove(menuResume.id);
-    setMenuAnchor(null);
+    closeMenu();
+    try {
+      // Keep a copy (with history) in memory so the delete can be undone.
+      const snapshot = await resumeRepository.exportBackup([menuResume.id]);
+      await resumeRepository.remove(menuResume.id);
+      setDeleted(snapshot);
+    } catch {
+      setMessage({ severity: "error", text: "Could not delete this resume." });
+    }
     setMenuResume(null);
-    setDeleteOpen(false);
+    await refresh();
+  }
+
+  async function undoDelete() {
+    if (!deleted) return;
+    const snapshot = deleted;
+    setDeleted(null);
+    try {
+      await resumeRepository.importBackup(snapshot);
+    } catch {
+      setMessage({ severity: "error", text: "Could not restore the resume." });
+    }
     await refresh();
   }
 
@@ -103,7 +161,7 @@ export function DashboardPage() {
       updatedAt: new Date().toISOString(),
     };
     await resumeRepository.save(duplicate);
-    setMenuAnchor(null);
+    closeMenu();
     setMenuResume(null);
     await refresh();
   }
@@ -120,36 +178,76 @@ export function DashboardPage() {
     await refresh();
   }
 
-  async function readImportFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) return;
-    setImportError("");
-    setImporting(true);
+  async function tailorResume() {
+    if (!menuResume || tailorDescription.trim().length <= MIN_JOB_DESCRIPTION_LENGTH)
+      return;
+    const jobTitle = tailorTitle.trim();
+    const tailored: Resume = {
+      ...structuredClone(menuResume),
+      id: crypto.randomUUID(),
+      title: `${menuResume.title || "Untitled resume"} · ${jobTitle || "tailored"}`,
+      targetJob: { title: jobTitle, description: tailorDescription.trim() },
+      updatedAt: new Date().toISOString(),
+    };
     try {
-      setImportPreview(await importResumeFile(file));
-    } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? error.message
-          : "This resume could not be read.",
-      );
-    } finally {
-      setImporting(false);
+      await resumeRepository.save(tailored);
+      setTailorOpen(false);
+      const state: EditorLocationState = { panel: "match" };
+      navigate(`/resume/${tailored.id}`, { state });
+    } catch {
+      setMessage({
+        severity: "error",
+        text: "Could not save the tailored copy in this browser.",
+      });
     }
   }
 
-  async function saveImportedResume() {
-    if (!importPreview) return;
+  async function exportBackup() {
+    setBackupAnchor(null);
     try {
-      await resumeRepository.save(importPreview);
-      navigate(`/resume/${importPreview.id}`, { state: { imported: true } });
-    } catch {
-      setImportError(
-        "The extracted resume could not be saved in this browser. Check available storage and try again.",
+      const backup = await resumeRepository.exportBackup();
+      downloadJson(
+        `formacv-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        backup,
       );
-      setImportPreview(null);
+      setMessage({
+        severity: "success",
+        text: `Backup downloaded with ${backup.resumes.length} resume${backup.resumes.length === 1 ? "" : "s"}.`,
+      });
+    } catch {
+      setMessage({ severity: "error", text: "Could not create the backup." });
     }
+  }
+
+  async function importBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    try {
+      const result = await resumeRepository.importBackup(
+        JSON.parse(await file.text()),
+      );
+      const parts = [
+        result.added && `${result.added} added`,
+        result.updated && `${result.updated} updated`,
+        result.skipped && `${result.skipped} already up to date or unreadable`,
+      ].filter(Boolean);
+      setMessage({
+        severity: "success",
+        text: `Backup restored: ${parts.join(", ") || "nothing to import"}.`,
+      });
+    } catch (error) {
+      setMessage({
+        severity: "error",
+        text:
+          error instanceof SyntaxError
+            ? "This file is not a FormaCV backup."
+            : error instanceof Error
+              ? error.message
+              : "Could not read this backup.",
+      });
+    }
+    await refresh();
   }
 
   return (
@@ -159,31 +257,31 @@ export function DashboardPage() {
           <Typography className="eyebrow">YOUR WORKSPACE</Typography>
           <Typography variant="h1">Your resumes</Typography>
           <Typography color="text.secondary">
-            A good next step starts with a clear story.
+            Saved in this browser only. Export a backup to keep a copy or move
+            to another device.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} className="dashboard-actions">
           <Button
             variant="outlined"
-            startIcon={<CloudUpload />}
-            onClick={() => fileInput.current?.click()}
-            disabled={importing}
+            startIcon={<Backup />}
+            onClick={(event) => setBackupAnchor(event.currentTarget)}
           >
-            {importing ? "Reading resume..." : "Import resume"}
+            Backup
           </Button>
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => void createResume()}
+            onClick={openStartResume}
           >
-            Create resume
+            Start a resume
           </Button>
           <input
-            ref={fileInput}
+            ref={backupInput}
             className="visually-hidden-input"
             type="file"
-            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-            onChange={(event) => void readImportFile(event)}
+            accept=".json,application/json"
+            onChange={(event) => void importBackup(event)}
           />
         </Stack>
       </Box>
@@ -192,18 +290,13 @@ export function DashboardPage() {
           Browser storage could not be opened. Your changes may not be saved.
         </Alert>
       )}
-      {importError && (
+      {message && (
         <Alert
-          severity="error"
+          severity={message.severity}
           sx={{ mb: 3 }}
-          onClose={() => setImportError("")}
+          onClose={() => setMessage(null)}
         >
-          {importError}
-        </Alert>
-      )}
-      {importing && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Reading this file locally. Larger resumes may take a few seconds.
+          {message.text}
         </Alert>
       )}
       {loading ? (
@@ -215,15 +308,14 @@ export function DashboardPage() {
           </Box>
           <Typography variant="h2">Make the first draft yours.</Typography>
           <Typography color="text.secondary">
-            Start with a blank page, then build a resume you can tailor for
-            every opportunity.
+            Start from a blank page, a template, or an existing resume file.
           </Typography>
           <Button
             variant="contained"
-            onClick={() => void createResume()}
+            onClick={openStartResume}
             startIcon={<Add />}
           >
-            Create your first resume
+            Start your first resume
           </Button>
           <Button
             component={RouterLink}
@@ -236,96 +328,152 @@ export function DashboardPage() {
         </Paper>
       ) : (
         <Box className="resume-grid">
-          {resumes.map((resume) => (
-            <Paper className="resume-card" key={resume.id} variant="outlined">
-              <Box className="resume-card-preview">
-                <div className={`mini-sheet mini-${resume.design.template}`}>
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <i />
-                </div>
-              </Box>
-              <Box className="resume-card-body">
-                <Stack
-                  direction="row"
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 1,
-                  }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="h3" noWrap>
-                      {resume.title || "Untitled resume"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {resume.profile.headline || "Draft resume"}
-                    </Typography>
-                  </Box>
-                  <IconButton
-                    aria-label={`Options for ${resume.title}`}
-                    onClick={(event) => {
-                      setMenuAnchor(event.currentTarget);
-                      setMenuResume(resume);
+          {resumes.map((resume) => {
+            const score = jobMatchScore(resume);
+            return (
+              <Paper className="resume-card" key={resume.id} variant="outlined">
+                <Box className="resume-card-preview">
+                  <div className={`mini-sheet mini-${resume.design.template}`}>
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <i />
+                  </div>
+                </Box>
+                <Box className="resume-card-body">
+                  <Stack
+                    direction="row"
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 1,
                     }}
                   >
-                    <MoreHoriz />
-                  </IconButton>
-                </Stack>
-                <Typography className="updated-label" variant="caption">
-                  Edited {new Date(resume.updatedAt).toLocaleDateString()}
-                </Typography>
-                <Button
-                  component={RouterLink}
-                  to={`/resume/${resume.id}`}
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<EditOutlined />}
-                >
-                  Continue editing
-                </Button>
-              </Box>
-            </Paper>
-          ))}
-          <Button
-            className="add-resume-card"
-            onClick={() => void createResume()}
-          >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h3" noWrap>
+                        {resume.title || "Untitled resume"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {resume.profile.headline || "Draft resume"}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      aria-label={`Options for ${resume.title}`}
+                      onClick={(event) => {
+                        setMenuAnchor(event.currentTarget);
+                        setMenuResume(resume);
+                      }}
+                    >
+                      <MoreHoriz />
+                    </IconButton>
+                  </Stack>
+                  <Stack
+                    direction="row"
+                    sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}
+                  >
+                    <Typography className="updated-label" variant="caption">
+                      Edited {new Date(resume.updatedAt).toLocaleDateString()}
+                    </Typography>
+                    {score !== null && (
+                      <Chip
+                        size="small"
+                        icon={<TrackChanges />}
+                        label={`${resume.targetJob?.title || "Job"} match ${score}`}
+                        variant="outlined"
+                        color={score >= 70 ? "success" : "default"}
+                      />
+                    )}
+                  </Stack>
+                  <Button
+                    component={RouterLink}
+                    to={`/resume/${resume.id}`}
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<EditOutlined />}
+                  >
+                    Continue editing
+                  </Button>
+                </Box>
+              </Paper>
+            );
+          })}
+          <Button className="add-resume-card" onClick={openStartResume}>
             <Add />
             <span>New resume</span>
           </Button>
         </Box>
       )}
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={() => setMenuAnchor(null)}
-      >
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
+        <MenuItem
+          onClick={() => {
+            setTailorTitle("");
+            setTailorDescription("");
+            setTailorOpen(true);
+            closeMenu();
+          }}
+        >
+          <ListItemIcon>
+            <TrackChanges fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Tailor for a job…</ListItemText>
+        </MenuItem>
         <MenuItem
           onClick={() => {
             setRenameValue(menuResume?.title ?? "");
             setRenameOpen(true);
-            setMenuAnchor(null);
+            closeMenu();
           }}
         >
-          <DriveFileRenameOutline fontSize="small" sx={{ mr: 1 }} />
-          Rename
+          <ListItemIcon>
+            <DriveFileRenameOutline fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Rename</ListItemText>
         </MenuItem>
         <MenuItem onClick={() => void duplicateResume()}>
-          <ContentCopy fontSize="small" sx={{ mr: 1 }} />
-          Duplicate
+          <ListItemIcon>
+            <ContentCopy fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Duplicate</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => void deleteResume()}>
+          <ListItemIcon>
+            <Delete fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete resume</ListItemText>
+        </MenuItem>
+      </Menu>
+      <Menu
+        anchorEl={backupAnchor}
+        open={Boolean(backupAnchor)}
+        onClose={() => setBackupAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => void exportBackup()}
+          disabled={resumes.length === 0}
+        >
+          <ListItemIcon>
+            <FileDownload fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Export backup"
+            secondary="Download every resume and its history as a file"
+          />
         </MenuItem>
         <MenuItem
           onClick={() => {
-            setDeleteOpen(true);
-            setMenuAnchor(null);
+            setBackupAnchor(null);
+            backupInput.current?.click();
           }}
         >
-          <Delete fontSize="small" sx={{ mr: 1 }} />
-          Delete resume
+          <ListItemIcon>
+            <FileUpload fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Import backup"
+            secondary="Restore resumes from a FormaCV backup file"
+          />
         </MenuItem>
       </Menu>
       <Dialog
@@ -356,73 +504,66 @@ export function DashboardPage() {
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>Delete this resume?</DialogTitle>
-        <DialogContent>
-          <Typography color="text.secondary">
-            This also removes its saved version history from this device.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Keep resume</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => void deleteResume()}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
       <Dialog
-        open={Boolean(importPreview)}
-        onClose={() => setImportPreview(null)}
+        open={tailorOpen}
+        onClose={() => setTailorOpen(false)}
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Review imported resume</DialogTitle>
+        <DialogTitle>Tailor for a job</DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            The file was read in this browser. Review every extracted field in
-            the editor; document formatting and complex layouts may not transfer
-            exactly.
-          </Alert>
-          <Typography variant="h3" sx={{ mb: 1 }}>
-            {importPreview?.profile.name || importPreview?.title}
+          <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+            Creates a copy of “{menuResume?.title || "Untitled resume"}” linked
+            to this job, and opens it with the job match panel so you can see
+            what to adjust. The original stays unchanged.
           </Typography>
-          <Typography color="text.secondary" variant="body2">
-            {importPreview?.profile.headline || "Resume details found"}
-          </Typography>
-          <Box className="import-summary-grid">
-            <Typography>
-              <strong>{importPreview?.experience.length ?? 0}</strong>{" "}
-              experience entries
-            </Typography>
-            <Typography>
-              <strong>{importPreview?.education.length ?? 0}</strong> education
-              entries
-            </Typography>
-            <Typography>
-              <strong>{importPreview?.skills.length ?? 0}</strong> skills
-            </Typography>
-            <Typography>
-              <strong>{importPreview?.projects.length ?? 0}</strong> projects
-            </Typography>
-          </Box>
-          {importPreview?.customSections.length ? (
-            <Typography variant="body2" color="text.secondary">
-              Unrecognized content is preserved under a custom section so you
-              can organize it later.
-            </Typography>
-          ) : null}
+          <Stack spacing={2}>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Job title"
+              placeholder="e.g. Senior Product Designer at Acme"
+              value={tailorTitle}
+              onChange={(event) => setTailorTitle(event.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={6}
+              maxRows={14}
+              label="Job description"
+              placeholder="Paste the full job description."
+              value={tailorDescription}
+              onChange={(event) => setTailorDescription(event.target.value)}
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setImportPreview(null)}>Cancel</Button>
-          <Button variant="contained" onClick={() => void saveImportedResume()}>
-            Import and edit
+          <Button onClick={() => setTailorOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => void tailorResume()}
+            disabled={
+              tailorDescription.trim().length <= MIN_JOB_DESCRIPTION_LENGTH
+            }
+          >
+            Create tailored copy
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={Boolean(deleted)}
+        autoHideDuration={UNDO_WINDOW_MS}
+        onClose={(_, reason) => {
+          if (reason !== "clickaway") setDeleted(null);
+        }}
+        message={`Deleted “${deleted?.resumes[0]?.title || "resume"}”`}
+        action={
+          <Button color="secondary" size="small" onClick={() => void undoDelete()}>
+            Undo
+          </Button>
+        }
+      />
     </Container>
   );
 }

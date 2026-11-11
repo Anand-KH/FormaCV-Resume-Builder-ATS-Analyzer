@@ -63,6 +63,17 @@ function containsTerm(text: string, term: string) {
   return variants.some((variant) => normalizedText.includes(` ${variant} `));
 }
 
+/** Minimum job-description length (in characters) before a score is meaningful. */
+export const MIN_JOB_DESCRIPTION_LENGTH = 20;
+
+/** Editor section an improvement points at (matches the editor's `edit-<id>` anchors). */
+export type AtsTarget =
+  | "profile"
+  | "summary"
+  | "experience"
+  | "education"
+  | "skills";
+
 export type AtsResult = {
   score: number;
   potentialPoints: number;
@@ -70,6 +81,7 @@ export type AtsResult = {
     title: string;
     detail: string;
     points: number;
+    target: AtsTarget;
   }[];
   categories: {
     label: string;
@@ -185,8 +197,20 @@ export function analyzeResume(
   );
   const suggestions: string[] = [];
   const improvements: AtsResult["improvements"] = [];
-  const addImprovement = (title: string, detail: string, points: number) => {
-    if (points > 0) improvements.push({ title, detail, points });
+  const addImprovement = (
+    title: string,
+    detail: string,
+    points: number,
+    target: AtsTarget,
+  ) => {
+    if (points > 0) improvements.push({ title, detail, points, target });
+  };
+  const sectionTargets: Record<string, AtsTarget> = {
+    "Professional summary": "summary",
+    Experience: "experience",
+    Education: "education",
+    Skills: "skills",
+    "Email address": "profile",
   };
 
   addImprovement(
@@ -195,6 +219,7 @@ export function analyzeResume(
       ? `Review: ${missing.slice(0, 5).join(", ")}. Include a term only when it accurately describes your skills or experience.`
       : "Add a job description to check role-specific keywords.",
     keywordScore < 40 ? 40 - keywordScore : 0,
+    "skills",
   );
   addImprovement(
     "Complete core sections",
@@ -202,6 +227,7 @@ export function analyzeResume(
       ? `Review these sections: ${sectionsMissing.join(", ")}.`
       : "Your summary, experience, education, skills, and email are present.",
     20 - sectionScore,
+    sectionTargets[sectionsMissing[0]] ?? "summary",
   );
   const missingContact = [
     !resume.profile.name.trim() && "your name",
@@ -214,6 +240,7 @@ export function analyzeResume(
       ? `Add ${missingContact.join(" and ")} so recruiters can identify and contact you.`
       : "Your name, email, and an additional contact detail are present.",
     15 - formatScore,
+    "profile",
   );
   addImprovement(
     "Show experience and measurable impact",
@@ -223,6 +250,7 @@ export function analyzeResume(
         ? "Use clear action verbs and add accurate numbers, scope, or outcomes to experience bullets."
         : "Your experience includes action language and measurable outcomes.",
     15 - experienceScore,
+    "experience",
   );
   addImprovement(
     "Refine the professional summary",
@@ -230,6 +258,7 @@ export function analyzeResume(
       ? "Add a concise, role-focused summary (ideally 80 to 450 characters)."
       : "Aim for a focused summary between 80 and 450 characters.",
     10 - readabilityScore,
+    "summary",
   );
 
   if (missing.length)

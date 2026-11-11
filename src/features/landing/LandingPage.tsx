@@ -1,6 +1,10 @@
-import { ArrowForward, AutoAwesome, CheckCircle, Insights, ViewQuilt } from '@mui/icons-material'
+import { Add, ArrowForward, AutoAwesome, CheckCircle, EditOutlined, Insights, ViewQuilt } from '@mui/icons-material'
 import { Box, Button, Container, Divider, Stack, Typography } from '@mui/material'
+import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import { resumeRepository } from '../../domain/resume/repository'
+import type { Resume } from '../../domain/resume/types'
+import { useStartResume } from '../start/startResumeContext'
 
 const highlights = [
   { icon: <ViewQuilt />, title: 'A resume that feels like you', body: 'Build with polished layouts, then tune the details without fighting a template.' },
@@ -9,6 +13,24 @@ const highlights = [
 ]
 
 export function LandingPage() {
+  const { openStartResume } = useStartResume()
+  // Resumes live in this browser's IndexedDB, so a visitor who has used the app
+  // here before gets a "continue" shortcut. No account or server involved.
+  const [lastResume, setLastResume] = useState<Resume | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void resumeRepository
+      .list()
+      .then((items) => {
+        if (active) setLastResume(items[0] ?? null)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
     <Box className="landing-page">
       <Container maxWidth="xl">
@@ -25,10 +47,23 @@ export function LandingPage() {
             <Typography component="h1">Your next chapter<br />starts on <em>one page.</em></Typography>
             <Typography className="hero-description">Build a clear, confident resume. Tune it for the role. Keep every draft right here with you.</Typography>
             <Stack className="hero-actions" direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <Button component={RouterLink} to="/dashboard" variant="contained" color="secondary" endIcon={<ArrowForward />}>Create resume</Button>
-              <Button component={RouterLink} to="/ats" variant="outlined" color="primary" startIcon={<Insights />}>Check ATS score</Button>
+              {lastResume ? (
+                <>
+                  <Button component={RouterLink} to={`/resume/${lastResume.id}`} variant="contained" color="secondary" startIcon={<EditOutlined />} className="continue-button">
+                    <span className="continue-label">Continue “{lastResume.title || 'Untitled resume'}”</span>
+                  </Button>
+                  <Button onClick={openStartResume} variant="outlined" color="primary" startIcon={<Add />}>Start a new resume</Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={openStartResume} variant="contained" color="secondary" endIcon={<ArrowForward />}>Create resume</Button>
+                  <Button component={RouterLink} to="/ats" variant="outlined" color="primary" startIcon={<Insights />}>Check ATS score</Button>
+                </>
+              )}
             </Stack>
-            <Typography className="privacy-note">No account needed · Saved locally on your device</Typography>
+            <Typography className="privacy-note">
+              {lastResume ? 'Welcome back · Your resumes are saved in this browser' : 'No account needed · Saved in this browser'}
+            </Typography>
           </Box>
           <Box className="hero-art" aria-label="Resume document preview">
             <div className="art-index">01 / YOUR STORY</div>

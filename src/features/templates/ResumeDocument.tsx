@@ -35,11 +35,18 @@ export function ResumeDocument({
 }) {
   const hidden = new Set(resume.hiddenSections);
   const fontFamilies = {
-    sans: '"DM Sans", sans-serif',
-    serif: "Georgia, serif",
-    system: "Arial, sans-serif",
+    sans: '"DM Sans Variable", sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    system: "Arial, Helvetica, sans-serif",
+  };
+  // The name uses a display face that pairs with the chosen body typeface.
+  const headingFamilies = {
+    sans: '"Manrope Variable", "DM Sans Variable", sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    system: "Arial, Helvetica, sans-serif",
   };
   const spacing = { compact: 0.8, comfortable: 1, relaxed: 1.2 };
+  const lineHeights = { compact: 1.3, comfortable: 1.45, relaxed: 1.65 };
   const margins = { compact: 0.8, standard: 1, wide: 1.2 };
   const renderSection = (id: SectionId) => {
     if (hidden.has(id)) return null;
@@ -192,13 +199,16 @@ export function ResumeDocument({
 
   return (
     <Box
-      className={`resume-document template-${resume.design.template} heading-${resume.design.headingStyle}${compact ? " compact-document" : ""}`}
+      className={`resume-document template-${resume.design.template} heading-${resume.design.headingStyle} font-${resume.design.fontFamily}${compact ? " compact-document" : ""}`}
       style={
         {
           "--resume-accent": resume.design.accentColor,
           "--resume-font-size": `${resume.design.fontSize}pt`,
           "--resume-font-family": fontFamilies[resume.design.fontFamily],
+          "--resume-heading-family":
+            headingFamilies[resume.design.fontFamily],
           "--resume-spacing": spacing[resume.design.spacing],
+          "--resume-line-height": lineHeights[resume.design.spacing],
           "--resume-margin": margins[resume.design.margin],
           "--resume-content-alignment":
             resume.design.summaryAlignment ?? "justify",

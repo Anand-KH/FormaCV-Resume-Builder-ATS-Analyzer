@@ -3,6 +3,8 @@ import {
   ArrowBack,
   DragIndicator,
   History,
+  Insights,
+  PictureAsPdf,
   Print,
   Visibility,
   VisibilityOff,
@@ -37,17 +39,36 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { Link as RouterLink, useLocation, useParams } from "react-router-dom";
-import type {
-  ResumeDesign,
-  ResumeVersion,
-  SectionId,
+import {
+  Link as RouterLink,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import type { ResumeVersion, SectionId } from "../../domain/resume/types";
+import {
+  createEmptyResume,
+  isResumeTemplate,
+  normalizeResume,
+  resumeSchema,
+  templateOptions,
+  type Resume,
 } from "../../domain/resume/types";
-import { resumeSchema, type Resume } from "../../domain/resume/types";
 import { resumeRepository } from "../../domain/resume/repository";
+import {
+  analyzeResume,
+  MIN_JOB_DESCRIPTION_LENGTH,
+  type AtsTarget,
+} from "../ats-checker/analyze";
+import { NEW_RESUME_ID } from "../start/startResumeContext";
 import { ResumeDocument } from "../templates/ResumeDocument";
+import { JobMatchPanel } from "./JobMatchPanel";
+
+/** Autosave snapshots at most this often; opening history always snapshots. */
+const AUTOSAVE_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
 
 const sectionLabels: Record<SectionId, string> = {
   experience: "Experience",
@@ -57,22 +78,34 @@ const sectionLabels: Record<SectionId, string> = {
   certifications: "Certifications",
   achievements: "Achievements",
   languages: "Languages",
-  custom: "Custom sections",
+  custom: "Custom",
 };
 
-const defaultDesign: ResumeDesign = {
-  template: "classic",
-  accentColor: "#1a4b73",
-  fontSize: 10,
-  fontFamily: "sans",
-  spacing: "comfortable",
-  margin: "standard",
-  headingStyle: "uppercase",
-  summaryAlignment: "justify",
-};
+type EditorPanel = "preview" | "match";
 
-function normalizeResumeDesign(resume: Resume): Resume {
-  return { ...resume, design: { ...defaultDesign, ...resume.design } };
+/** Location state other pages can pass when opening the editor. */
+export type EditorLocationState = { imported?: boolean; panel?: EditorPanel };
+
+/** Prepare a resume for the form: fill design defaults and an empty target job. */
+function toFormValues(resume: Resume): Resume {
+  const normalized = normalizeResume(resume);
+  return {
+    ...normalized,
+    targetJob: normalized.targetJob ?? { title: "", description: "" },
+  };
+}
+
+/**
+ * Compare resumes by content. Ignores the timestamp, and treats an empty
+ * target job the same as none, so opening an old resume doesn't trigger a save.
+ */
+function contentKey(resume: Resume) {
+  const job = resume.targetJob;
+  return JSON.stringify({
+    ...resume,
+    updatedAt: "",
+    targetJob: job?.title.trim() || job?.description.trim() ? job : undefined,
+  });
 }
 
 type DescriptionListStyle = "bullets" | "numbered" | "dashes" | "plain";
@@ -190,9 +223,16 @@ function Field({
 export function EditorPage() {
   const { resumeId = "" } = useParams();
   const location = useLocation();
-  const importedFromFile = Boolean(
-    (location.state as { imported?: boolean } | null)?.imported,
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const locationState = location.state as EditorLocationState | null;
+  const importedFromFile = Boolean(locationState?.imported);
+  const [panel, setPanel] = useState<EditorPanel>(
+    locationState?.panel === "match" ? "match" : "preview",
   );
+  /** Content of an unsaved draft as created; null once saved or for stored resumes. */
+  const draftBaseline = useRef<string | null>(null);
+  const isDraft = resumeId === NEW_RESUME_ID;
   const [ready, setReady] = useState(false);
   const [missing, setMissing] = useState(false);
   const [lastSaved, setLastSaved] = useState("");
@@ -211,12 +251,31 @@ export function EditorPage() {
   const serializedValues = JSON.stringify(values);
 
   useEffect(() => {
+    // A draft's first save swaps the URL to its real id; the form already holds it.
+    if (getValues("id") === resumeId) return;
     let active = true;
+    if (resumeId === NEW_RESUME_ID) {
+      const template = searchParams.get("template");
+      const draft = toFormValues(
+        createEmptyResume(isResumeTemplate(template) ? template : undefined),
+      );
+      draftBaseline.current = contentKey(draft);
+      reset(draft);
+      void Promise.resolve().then(() => {
+        if (!active) return;
+        setMissing(false);
+        setReady(true);
+      });
+      return () => {
+        active = false;
+      };
+    }
+    draftBaseline.current = null;
     void resumeRepository
       .get(resumeId)
       .then((resume) => {
         if (!active) return;
-        if (resume) reset(normalizeResumeDesign(resume));
+        if (resume) reset(toFormValues(resume));
         else setMissing(true);
         setReady(true);
       })
@@ -229,24 +288,39 @@ export function EditorPage() {
     return () => {
       active = false;
     };
-  }, [resumeId, reset]);
+  }, [resumeId, reset, getValues, searchParams]);
 
   useEffect(() => {
     if (!ready || missing || !values?.id) return;
     const timer = window.setTimeout(() => {
       void (async () => {
         const current = getValues();
-        const saved = await resumeRepository.get(resumeId);
-        const currentContent = JSON.stringify({ ...current, updatedAt: "" });
-        const savedContent = saved
-          ? JSON.stringify({ ...saved, updatedAt: "" })
-          : "";
-        if (currentContent !== savedContent) {
-          if (saved) await resumeRepository.addVersion(saved);
+        const currentContent = contentKey(current);
+        if (draftBaseline.current !== null) {
+          // Unsaved draft: write nothing until the user actually changes something.
+          if (currentContent === draftBaseline.current) return;
           await resumeRepository.save({
             ...current,
             updatedAt: new Date().toISOString(),
           });
+          draftBaseline.current = null;
+          navigate(`/resume/${current.id}`, {
+            replace: true,
+            state: location.state,
+          });
+        } else {
+          const saved = await resumeRepository.get(current.id);
+          const savedContent = saved ? contentKey(toFormValues(saved)) : "";
+          if (currentContent !== savedContent) {
+            if (saved)
+              await resumeRepository.addVersion(saved, {
+                minIntervalMs: AUTOSAVE_SNAPSHOT_INTERVAL_MS,
+              });
+            await resumeRepository.save({
+              ...current,
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
         setLastSaved(
           new Date().toLocaleTimeString([], {
@@ -257,7 +331,15 @@ export function EditorPage() {
       })().catch(() => setNotice("Could not save to this browser."));
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [getValues, missing, ready, serializedValues, values?.id, resumeId]);
+  }, [
+    getValues,
+    missing,
+    ready,
+    serializedValues,
+    values?.id,
+    navigate,
+    location.state,
+  ]);
 
   if (!ready)
     return (
@@ -275,6 +357,20 @@ export function EditorPage() {
       </Alert>
     );
   const currentResume = values as Resume;
+  const jobDescription = currentResume.targetJob?.description ?? "";
+  const matchResult =
+    jobDescription.trim().length > MIN_JOB_DESCRIPTION_LENGTH
+      ? analyzeResume(currentResume, jobDescription)
+      : null;
+
+  function jumpToSection(target: AtsTarget) {
+    const section = document.getElementById(`edit-${target}`);
+    if (!section) return;
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    section
+      .querySelector<HTMLElement>("input, textarea")
+      ?.focus({ preventScroll: true });
+  }
 
   function reorderSections(event: DragEndEvent) {
     if (!event.over || event.active.id === event.over.id) return;
@@ -312,7 +408,7 @@ export function EditorPage() {
   async function restore(versionId: string) {
     const restored = await resumeRepository.restoreVersion(versionId);
     if (!restored) return;
-    const normalized = normalizeResumeDesign(restored);
+    const normalized = toFormValues(restored);
     reset(normalized);
     await resumeRepository.save(normalized);
     setHistoryOpen(false);
@@ -364,21 +460,31 @@ export function EditorPage() {
         >
           All resumes
         </Button>
-        <Box className="save-status">
+        <Box className={`save-status${isDraft ? " is-draft" : ""}`}>
           <span className="save-dot" />
-          {lastSaved ? `Saved at ${lastSaved}` : "Saving changes automatically"}
+          {isDraft
+            ? "Not saved yet · start typing to save"
+            : lastSaved
+              ? `Saved at ${lastSaved}`
+              : "Saving changes automatically"}
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button startIcon={<History />} onClick={() => void openHistory()}>
+          <Button
+            startIcon={<History />}
+            onClick={() => void openHistory()}
+            disabled={isDraft}
+          >
             History
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<Print />}
-            onClick={printResume}
-          >
-            Print / PDF
-          </Button>
+          <Tooltip title="Opens the print dialog. Choose Save as PDF as the destination.">
+            <Button
+              variant="contained"
+              startIcon={<PictureAsPdf />}
+              onClick={printResume}
+            >
+              Save as PDF
+            </Button>
+          </Tooltip>
         </Stack>
       </Box>
       {importedFromFile && (
@@ -403,11 +509,9 @@ export function EditorPage() {
           aria-label="Resume title"
           {...register("title")}
         />
-        <Chip
-          size="small"
-          label="Private · saved on this device"
-          variant="outlined"
-        />
+        <Tooltip title="Resumes are stored in this browser only. Export a backup from My resumes to keep a copy or move to another device.">
+          <Chip size="small" label="Saved in this browser" variant="outlined" />
+        </Tooltip>
       </Box>
       <Box className="editor-workspace">
         <Paper className="editor-navigation" variant="outlined">
@@ -470,15 +574,11 @@ export function EditorPage() {
                 size="small"
                 sx={{ mb: 1.5 }}
               >
-                <MenuItem value="modern">Modern</MenuItem>
-                <MenuItem value="classic">Classic</MenuItem>
-                <MenuItem value="ats">ATS</MenuItem>
-                <MenuItem value="editorial">Editorial</MenuItem>
-                <MenuItem value="studio">Studio</MenuItem>
-                <MenuItem value="signature">Signature</MenuItem>
-                <MenuItem value="professional">Professional</MenuItem>
-                <MenuItem value="minimal">Minimal</MenuItem>
-                <MenuItem value="executive">Executive</MenuItem>
+                {templateOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />
@@ -1195,13 +1295,42 @@ export function EditorPage() {
 
         <Paper className="preview-panel" variant="outlined">
           <Box className="preview-panel-heading">
-            <Typography className="panel-eyebrow">LIVE PREVIEW</Typography>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={panel}
+              onChange={(_, value: EditorPanel | null) =>
+                value && setPanel(value)
+              }
+              aria-label="Side panel"
+            >
+              <ToggleButton value="preview">Preview</ToggleButton>
+              <ToggleButton value="match">
+                <Insights fontSize="small" sx={{ mr: 0.5 }} />
+                Job match
+                {matchResult && (
+                  <span className="panel-score">{matchResult.score}</span>
+                )}
+              </ToggleButton>
+            </ToggleButtonGroup>
             <IconButton onClick={printResume} aria-label="Print resume">
               <Print />
             </IconButton>
           </Box>
-          <Box className="preview-scroll">
+          {/* Both panes stay mounted: the preview is what prints, and the job fields stay registered. */}
+          <Box
+            className={`preview-scroll${panel === "preview" ? "" : " is-hidden"}`}
+          >
             <ResumeDocument resume={currentResume} />
+          </Box>
+          <Box
+            className={`job-match-scroll${panel === "match" ? "" : " is-hidden"}`}
+          >
+            <JobMatchPanel
+              register={register}
+              result={matchResult}
+              onJump={jumpToSection}
+            />
           </Box>
         </Paper>
       </Box>

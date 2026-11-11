@@ -86,6 +86,10 @@ export const resumeSchema = z.object({
   ),
   sectionOrder: z.array(z.enum(sectionIds)),
   hiddenSections: z.array(z.enum(sectionIds)),
+  /** The job this resume is being tailored for; drives the editor's job-match panel. */
+  targetJob: z
+    .object({ title: z.string(), description: z.string() })
+    .optional(),
   design: z.object({
     template: z.enum([
       "modern",
@@ -112,7 +116,23 @@ export type Resume = z.infer<typeof resumeSchema>;
 
 const makeId = () => crypto.randomUUID();
 
-export function createEmptyResume(): Resume {
+export const defaultDesign: ResumeDesign = {
+  template: "classic",
+  accentColor: "#1a4b73",
+  fontSize: 10,
+  fontFamily: "sans",
+  spacing: "comfortable",
+  margin: "standard",
+  headingStyle: "uppercase",
+  summaryAlignment: "justify",
+};
+
+/** Fill in design fields that older saved or imported resumes may lack. */
+export function normalizeResume(resume: Resume): Resume {
+  return { ...resume, design: { ...defaultDesign, ...resume.design } };
+}
+
+export function createEmptyResume(template?: ResumeTemplate): Resume {
   return {
     id: makeId(),
     title: "Untitled resume",
@@ -137,17 +157,24 @@ export function createEmptyResume(): Resume {
     customSections: [],
     sectionOrder: [...sectionIds],
     hiddenSections: [],
-    design: {
-      template: "classic",
-      accentColor: "#1a4b73",
-      fontSize: 10,
-      fontFamily: "sans",
-      spacing: "comfortable",
-      margin: "standard",
-      headingStyle: "uppercase",
-      summaryAlignment: "justify",
-    },
+    design: { ...defaultDesign, ...(template ? { template } : {}) },
   };
+}
+
+export const templateOptions: { value: ResumeTemplate; label: string }[] = [
+  { value: "modern", label: "Modern" },
+  { value: "classic", label: "Classic" },
+  { value: "ats", label: "ATS" },
+  { value: "editorial", label: "Editorial" },
+  { value: "studio", label: "Studio" },
+  { value: "signature", label: "Signature" },
+  { value: "professional", label: "Professional" },
+  { value: "minimal", label: "Minimal" },
+  { value: "executive", label: "Executive" },
+];
+
+export function isResumeTemplate(value: unknown): value is ResumeTemplate {
+  return templateOptions.some((option) => option.value === value);
 }
 
 export type ResumeVersion = {
