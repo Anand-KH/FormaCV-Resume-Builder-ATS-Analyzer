@@ -25,7 +25,12 @@ import { useNavigate } from "react-router-dom";
 import { resumeRepository } from "../../domain/resume/repository";
 import type { Resume } from "../../domain/resume/types";
 import { importResumeFile } from "../resume-import/parseResume";
-import { analyzeResume, type AtsResult } from "./analyze";
+import type { EditorLocationState } from "../resume-editor/EditorPage";
+import {
+  analyzeResume,
+  MIN_JOB_DESCRIPTION_LENGTH,
+  type AtsResult,
+} from "./analyze";
 
 export function AtsPage() {
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -53,6 +58,9 @@ export function AtsPage() {
       .then((items) => {
         setResumes(items);
         setSelectedId(items[0]?.id ?? "");
+        setJobDescription(
+          (current) => current || items[0]?.targetJob?.description || "",
+        );
         if (items.length === 0) setSource("upload");
       })
       .catch(() => setStorageError(true))
@@ -83,7 +91,7 @@ export function AtsPage() {
   }
 
   function runAnalysis() {
-    if (!selectedResume || jobDescription.trim().length <= 20) return;
+    if (!selectedResume || jobDescription.trim().length <= MIN_JOB_DESCRIPTION_LENGTH) return;
     setResult(analyzeResume(selectedResume, jobDescription));
   }
 
@@ -91,8 +99,22 @@ export function AtsPage() {
     if (!selectedResume) return;
     setEditError("");
     try {
-      if (source === "upload") await resumeRepository.save(selectedResume);
-      navigate(`/resume/${selectedResume.id}`);
+      // Keep the job with the resume so the editor's Job match panel picks it up.
+      const description = jobDescription.trim();
+      const resumeToOpen = description
+        ? {
+            ...selectedResume,
+            targetJob: {
+              title: selectedResume.targetJob?.title ?? "",
+              description,
+            },
+            updatedAt: new Date().toISOString(),
+          }
+        : selectedResume;
+      if (source === "upload" || description)
+        await resumeRepository.save(resumeToOpen);
+      const state: EditorLocationState = { panel: "match" };
+      navigate(`/resume/${selectedResume.id}`, { state });
     } catch {
       setEditError("Could not save this resume in this browser. Try again.");
     }
@@ -150,6 +172,11 @@ export function AtsPage() {
                 onChange={(event) => {
                   setSelectedId(event.target.value);
                   setResult(null);
+                  // Reuse the job saved with that resume if nothing is pasted yet.
+                  const saved = resumes.find(
+                    (resume) => resume.id === event.target.value,
+                  )?.targetJob?.description;
+                  if (saved && !jobDescription.trim()) setJobDescription(saved);
                 }}
                 sx={{ mt: 2 }}
               >
@@ -193,8 +220,8 @@ export function AtsPage() {
             <TextField
               fullWidth
               multiline
-              minRows={14}
-              maxRows={24}
+              minRows={10}
+              maxRows={18}
               label="Paste job description"
               placeholder="Include responsibilities, qualifications, and skills…"
               value={jobDescription}
@@ -209,7 +236,7 @@ export function AtsPage() {
               variant="contained"
               startIcon={<Insights />}
               onClick={runAnalysis}
-              disabled={!selectedResume || jobDescription.trim().length <= 20}
+              disabled={!selectedResume || jobDescription.trim().length <= MIN_JOB_DESCRIPTION_LENGTH}
               sx={{ mt: 2 }}
             >
               Check ATS score

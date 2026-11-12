@@ -58,4 +58,20 @@ describe("analyzeResume", () => {
       "Add a concise professional summary tailored to the kind of role you want.",
     );
   });
+
+  it("points each improvement at the editor section to fix", () => {
+    const result = analyzeResume(
+      createEmptyResume(),
+      "Looking for a designer with Figma, prototyping, and research skills.",
+    );
+    const targets = Object.fromEntries(
+      result.improvements.map((item) => [item.title, item.target]),
+    );
+
+    expect(targets["Match relevant job terms"]).toBe("skills");
+    expect(targets["Complete core sections"]).toBe("summary");
+    expect(targets["Strengthen contact details"]).toBe("profile");
+    expect(targets["Show experience and measurable impact"]).toBe("experience");
+    expect(targets["Refine the professional summary"]).toBe("summary");
+  });
 });

@@ -25,11 +25,14 @@ import { ThemeProvider } from "@mui/material/styles";
 import { lazy, Suspense, useState } from "react";
 import {
   Link as RouterLink,
+  NavLink,
   Navigate,
   Outlet,
   Route,
   Routes,
 } from "react-router-dom";
+import { StartResumeProvider } from "./features/start/StartResumeDialog";
+import { useStartResume } from "./features/start/startResumeContext";
 import "./product.css";
 
 const AtsPage = lazy(() =>
@@ -64,10 +67,10 @@ const theme = createTheme({
   },
   shape: { borderRadius: 8 },
   typography: {
-    fontFamily: '"DM Sans", "Segoe UI", sans-serif',
-    h1: { fontFamily: '"Manrope", "DM Sans", sans-serif', fontWeight: 700 },
-    h2: { fontFamily: '"Manrope", "DM Sans", sans-serif', fontWeight: 700 },
-    h3: { fontFamily: '"Manrope", "DM Sans", sans-serif', fontWeight: 700 },
+    fontFamily: '"DM Sans Variable", "Segoe UI", sans-serif',
+    h1: { fontFamily: '"Manrope Variable", "DM Sans Variable", sans-serif', fontWeight: 700 },
+    h2: { fontFamily: '"Manrope Variable", "DM Sans Variable", sans-serif', fontWeight: 700 },
+    h3: { fontFamily: '"Manrope Variable", "DM Sans Variable", sans-serif', fontWeight: 700 },
     button: { textTransform: "none", fontWeight: 700 },
   },
   components: {
@@ -78,6 +81,7 @@ const theme = createTheme({
 
 function ProductShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { openStartResume } = useStartResume();
   const closeDrawer = () => setDrawerOpen(false);
   const links = [
     { label: "My resumes", to: "/dashboard", icon: <Dashboard /> },
@@ -108,7 +112,7 @@ function ProductShell() {
             {links.map((item) => (
               <Button
                 key={item.to}
-                component={RouterLink}
+                component={NavLink}
                 to={item.to}
                 color="inherit"
                 startIcon={item.icon}
@@ -119,8 +123,7 @@ function ProductShell() {
           </Box>
           <Button
             className="topbar-create"
-            component={RouterLink}
-            to="/dashboard"
+            onClick={openStartResume}
             variant="contained"
             color="secondary"
             startIcon={<Description />}
@@ -137,7 +140,7 @@ function ProductShell() {
         >
           <List>
             {links.map((item) => (
-              <ListItemButton key={item.to} component={RouterLink} to={item.to}>
+              <ListItemButton key={item.to} component={NavLink} to={item.to}>
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.label} />
               </ListItemButton>
@@ -149,7 +152,7 @@ function ProductShell() {
       <Box component="footer" className="app-footer">
         <Container maxWidth="xl">
           <Typography variant="caption">
-            FormaCV · Your documents stay on this device.
+            FormaCV · Your resumes are saved in this browser.
           </Typography>
         </Container>
       </Box>
@@ -170,7 +173,8 @@ function App() {
           </Box>
         }
       >
-        <Routes>
+        <StartResumeProvider>
+          <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route element={<ProductShell />}>
             <Route path="/dashboard" element={<DashboardPage />} />
@@ -178,7 +182,8 @@ function App() {
             <Route path="/ats" element={<AtsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-        </Routes>
+          </Routes>
+        </StartResumeProvider>
       </Suspense>
     </ThemeProvider>
   );

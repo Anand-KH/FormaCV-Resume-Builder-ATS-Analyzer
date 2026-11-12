@@ -31,6 +31,8 @@ export type ResumeDesign = {
   margin: "compact" | "standard" | "wide";
   headingStyle: "uppercase" | "title" | "underline";
   summaryAlignment: "left" | "center" | "right" | "justify";
+  /** Show the profile photo (when one is uploaded). Defaults to true. */
+  showPhoto?: boolean;
 };
 
 const experienceSchema = z.object({
@@ -72,6 +74,8 @@ export const resumeSchema = z.object({
     location: z.string(),
     website: z.string(),
     linkedin: z.string(),
+    /** Profile photo as a compressed JPEG data URL. */
+    photo: z.string().optional(),
   }),
   summary: z.string(),
   experience: z.array(experienceSchema),
@@ -86,6 +90,10 @@ export const resumeSchema = z.object({
   ),
   sectionOrder: z.array(z.enum(sectionIds)),
   hiddenSections: z.array(z.enum(sectionIds)),
+  /** The job this resume is being tailored for; drives the editor's job-match panel. */
+  targetJob: z
+    .object({ title: z.string(), description: z.string() })
+    .optional(),
   design: z.object({
     template: z.enum([
       "modern",
@@ -105,6 +113,7 @@ export const resumeSchema = z.object({
     margin: z.enum(["compact", "standard", "wide"]),
     headingStyle: z.enum(["uppercase", "title", "underline"]),
     summaryAlignment: z.enum(["left", "center", "right", "justify"]),
+    showPhoto: z.boolean().optional(),
   }),
 });
 
@@ -112,7 +121,23 @@ export type Resume = z.infer<typeof resumeSchema>;
 
 const makeId = () => crypto.randomUUID();
 
-export function createEmptyResume(): Resume {
+export const defaultDesign: ResumeDesign = {
+  template: "classic",
+  accentColor: "#1a4b73",
+  fontSize: 10,
+  fontFamily: "sans",
+  spacing: "comfortable",
+  margin: "standard",
+  headingStyle: "uppercase",
+  summaryAlignment: "justify",
+};
+
+/** Fill in design fields that older saved or imported resumes may lack. */
+export function normalizeResume(resume: Resume): Resume {
+  return { ...resume, design: { ...defaultDesign, ...resume.design } };
+}
+
+export function createEmptyResume(template?: ResumeTemplate): Resume {
   return {
     id: makeId(),
     title: "Untitled resume",
@@ -137,17 +162,35 @@ export function createEmptyResume(): Resume {
     customSections: [],
     sectionOrder: [...sectionIds],
     hiddenSections: [],
-    design: {
-      template: "classic",
-      accentColor: "#1a4b73",
-      fontSize: 10,
-      fontFamily: "sans",
-      spacing: "comfortable",
-      margin: "standard",
-      headingStyle: "uppercase",
-      summaryAlignment: "justify",
-    },
+    design: { ...defaultDesign, ...(template ? { template } : {}) },
   };
+}
+
+/** Templates that never show a photo (ATS parsers can't read images). */
+export const photoFreeTemplates: ResumeTemplate[] = ["ats"];
+
+export function shouldShowPhoto(resume: Resume) {
+  return (
+    Boolean(resume.profile.photo) &&
+    resume.design.showPhoto !== false &&
+    !photoFreeTemplates.includes(resume.design.template)
+  );
+}
+
+export const templateOptions: { value: ResumeTemplate; label: string }[] = [
+  { value: "modern", label: "Modern" },
+  { value: "classic", label: "Classic" },
+  { value: "ats", label: "ATS" },
+  { value: "editorial", label: "Editorial" },
+  { value: "studio", label: "Studio" },
+  { value: "signature", label: "Signature" },
+  { value: "professional", label: "Professional" },
+  { value: "minimal", label: "Minimal" },
+  { value: "executive", label: "Executive" },
+];
+
+export function isResumeTemplate(value: unknown): value is ResumeTemplate {
+  return templateOptions.some((option) => option.value === value);
 }
 
 export type ResumeVersion = {

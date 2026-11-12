@@ -31,7 +31,7 @@ body {
 }
 .landing-brand,
 .brand {
-  font-family: "Manrope", sans-serif !important;
+  font-family: "Manrope Variable", sans-serif !important;
   font-weight: 800 !important;
   font-size: 20px !important;
   letter-spacing: 0 !important;
@@ -157,7 +157,7 @@ body {
 }
 .sheet-name {
   color: #203b37;
-  font-family: "Manrope", sans-serif;
+  font-family: "Manrope Variable", sans-serif;
   font-size: 25px;
   font-weight: 800;
 }
@@ -496,7 +496,7 @@ body {
   max-width: 420px;
 }
 .resume-title-input input {
-  font-family: "Manrope", sans-serif;
+  font-family: "Manrope Variable", sans-serif;
   font-size: 24px;
   font-weight: 700;
 }
@@ -509,6 +509,11 @@ body {
 .editor-navigation {
   position: sticky;
   top: 84px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c9d2cb transparent;
   padding: 16px 12px;
 }
 .panel-eyebrow {
@@ -531,9 +536,15 @@ body {
 .section-nav-button {
   justify-content: flex-start !important;
   flex: 1;
+  min-width: 0 !important;
   min-height: 34px !important;
   color: #50645c !important;
   font-size: 12px !important;
+  /* Labels that don't fit wrap onto a second line, left-aligned with the rest. */
+  text-align: left;
+  display: block !important;
+  line-height: 1.25 !important;
+  padding: 8px 6px !important;
 }
 .drag-handle {
   cursor: grab;
@@ -637,8 +648,10 @@ body {
 .resume-document {
   --resume-accent: #28766a;
   --resume-font-size: 10pt;
-  --resume-font-family: "DM Sans", sans-serif;
+  --resume-font-family: "DM Sans Variable", sans-serif;
+  --resume-heading-family: "Manrope Variable", sans-serif;
   --resume-spacing: 1;
+  --resume-line-height: 1.45;
   --resume-margin: 1;
   box-sizing: border-box;
   width: min(100%, 210mm);
@@ -650,29 +663,48 @@ body {
   box-shadow: 0 2px 12px #23362b14;
   font-family: var(--resume-font-family);
   font-size: var(--resume-font-size);
-  line-height: 1.45;
+  line-height: var(--resume-line-height);
+}
+/* MUI Typography sets its own font; make resume text follow the chosen typeface. */
+.resume-document .document-copy,
+.resume-document .document-headline,
+.resume-document .document-contact,
+.resume-document .document-section h3 {
+  font-family: var(--resume-font-family);
 }
 .document-header {
   padding-bottom: 15px;
   border-bottom: 2px solid var(--resume-accent);
 }
-.document-header h2 {
+.resume-document .document-header h2 {
   margin: 0 0 4px;
   color: #20352f;
-  font-family: "Manrope", sans-serif;
-  font-size: 22pt;
+  font-family: var(--resume-heading-family);
+  font-size: 2.2em;
+  overflow-wrap: anywhere;
   font-weight: 800;
   line-height: 1.15;
 }
-.document-headline {
+.resume-document .document-headline {
   color: var(--resume-accent);
+  font-size: 1.1em;
   font-weight: 700;
 }
 .document-contact {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 2px;
   margin-top: 8px !important;
   color: #65736c;
   font-size: 0.82em !important;
   overflow-wrap: anywhere;
+}
+.resume-document:not(.template-classic):not(.template-ats)
+  .document-contact
+  span:not(:last-child)::after {
+  content: "·";
+  margin: 0 0.5em;
+  color: #9aa7a1;
 }
 .document-contact a {
   color: inherit;
@@ -716,13 +748,13 @@ body {
   margin-top: 5px !important;
   white-space: pre-line;
   font-size: 0.92em !important;
-  line-height: 1.45 !important;
+  line-height: var(--resume-line-height) !important;
 }
 .document-list {
   margin: 0;
   padding-left: 1.25em;
   font-size: 0.92em;
-  line-height: 1.45;
+  line-height: var(--resume-line-height);
 }
 .document-list li + li {
   margin-top: 3px;
@@ -737,7 +769,7 @@ body {
 .template-classic .document-header h2 {
   margin-bottom: 0;
   color: #1c2f33;
-  font-size: clamp(24pt, 3.4vw, 38pt);
+  font-size: 3.4em;
   font-weight: 800;
   letter-spacing: -0.06em;
 }
@@ -756,7 +788,7 @@ body {
   font-size: 0.82em !important;
 }
 .template-classic .document-section {
-  margin-top: 20px;
+  margin-top: calc(20px * var(--resume-spacing));
 }
 .template-classic .document-section h3 {
   font-size: 1.02em;
@@ -783,7 +815,7 @@ body {
 .template-ats .document-header h2 {
   margin-bottom: 0;
   color: #10314d;
-  font-size: clamp(26pt, 3.2vw, 37pt);
+  font-size: 3.4em;
   letter-spacing: -0.05em;
 }
 .template-ats .document-headline {
@@ -821,7 +853,8 @@ body {
   padding-bottom: 12px;
   border-bottom: 3px solid var(--resume-accent);
 }
-.template-editorial .document-header h2 {
+/* Editorial's serif name is its signature look, unless another typeface is chosen. */
+.template-editorial.font-sans .document-header h2 {
   font-family: Georgia, "Times New Roman", serif;
   letter-spacing: 0.04em;
 }
@@ -853,7 +886,7 @@ body {
   border-bottom: none;
 }
 .template-signature .document-header h2 {
-  font-size: 24pt;
+  font-size: 2.4em;
   font-weight: 900;
   letter-spacing: -0.04em;
 }
@@ -876,9 +909,147 @@ body {
 .template-executive .document-header {
   text-align: center;
 }
+.template-executive .document-contact {
+  justify-content: center;
+}
 .template-executive .document-section h3 {
   border-bottom: 1px solid #d9e0d9;
   padding-bottom: 4px;
+}
+/* Profile photo: each template places and shapes it differently.
+   Sizes are in em so they follow the Text size setting. ATS never shows one. */
+.document-header.has-photo {
+  display: flex;
+  align-items: center;
+  gap: 1.6em;
+}
+.document-header-text {
+  flex: 1;
+  min-width: 0;
+}
+.document-photo {
+  flex: none;
+  width: 6.4em;
+  height: 6.4em;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #eef1ec;
+}
+/* Modern: circle on the left (the default above). */
+/* Classic: square portrait on the right */
+.template-classic .document-header.has-photo {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+}
+.template-classic .document-photo {
+  width: 7.2em;
+  height: 7.2em;
+  border-radius: 4px;
+}
+/* Editorial: tall portrait on the right */
+.template-editorial .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-editorial .document-photo {
+  width: 6.2em;
+  height: 8em;
+  border-radius: 0;
+  object-position: center 25%;
+}
+/* Studio: circle with a white ring inside the header card */
+.template-studio .document-photo {
+  border: 4px solid #fff;
+  box-shadow: 0 4px 14px #1f2b2724;
+}
+/* Signature: rounded square beside the accent bar */
+.template-signature .document-photo {
+  border-radius: 14px;
+}
+/* Professional: circle with an accent ring, on the right */
+.template-professional .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-professional .document-photo {
+  padding: 3px;
+  border: 3px solid var(--resume-accent);
+  background: #fff;
+}
+/* Minimal: small circle on the right */
+.template-minimal .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-minimal .document-photo {
+  width: 4.8em;
+  height: 4.8em;
+}
+/* Executive: centered above the name */
+.template-executive .document-header.has-photo {
+  flex-direction: column;
+  gap: 0.9em;
+}
+.template-executive .document-header-text {
+  width: 100%;
+}
+.template-executive .document-photo {
+  width: 7em;
+  height: 7em;
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 5px var(--resume-accent);
+}
+
+/* Photo upload control in the editor */
+.photo-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.photo-field-avatar {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 10px !important;
+  background: #eef1ec !important;
+  color: #8a9a92 !important;
+}
+.photo-field-avatar-wrap {
+  position: relative;
+  flex: none;
+}
+.photo-field-delete {
+  position: absolute !important;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 1px solid #e2e7df !important;
+  background: #fff !important;
+  color: #b3261e !important;
+  font-size: 14px !important;
+  box-shadow: 0 1px 4px #23362b26;
+}
+.photo-field-delete:hover {
+  background: #fdecea !important;
+}
+.photo-field-body {
+  flex: 1;
+  min-width: 0;
+}
+.photo-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 8px;
+}
+.photo-field-actions .MuiFormControlLabel-label {
+  font-size: 13px;
+}
+
+/* An explicit heading style wins over a template's default casing. */
+.resume-document.heading-uppercase .document-section h3 {
+  text-transform: uppercase;
 }
 .heading-title .document-section h3 {
   text-transform: none;
@@ -1087,15 +1258,499 @@ body {
     transform: rotate(2deg);
   }
 }
+/* Start a resume dialog */
+.start-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.start-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.start-option {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 8px;
+  padding: 20px !important;
+  text-align: left;
+  border: 1px solid #e2e7df !important;
+  border-radius: 8px !important;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.start-option:hover,
+.start-option.Mui-focusVisible {
+  border-color: #203b37 !important;
+  background: #f7f9f3;
+}
+.start-option h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.start-option-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #eef7cf;
+  color: #203b37;
+}
+.template-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.template-choice {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 8px 12px !important;
+  border: 1px solid #e2e7df !important;
+  border-radius: 8px !important;
+  background: #e9ede6 !important;
+}
+.template-choice:hover,
+.template-choice.Mui-focusVisible {
+  border-color: #203b37 !important;
+}
+.template-choice p {
+  font-weight: 700;
+}
+
+/* Editor: draft state and side-panel tabs */
+.save-status.is-draft .save-dot {
+  background: #d9a441;
+}
+.panel-score {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #d1f15b;
+  color: #182c28;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+}
+.preview-panel .is-hidden {
+  display: none !important;
+}
+.job-match-scroll {
+  max-height: calc(100vh - 145px);
+  overflow: auto;
+  padding: 16px;
+}
+.job-match {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.job-match .panel-eyebrow {
+  margin: 6px 0 -6px !important;
+}
+.job-match-score {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  column-gap: 6px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f3f8e2;
+}
+.job-match-score strong {
+  font-family: "Manrope Variable", sans-serif;
+  font-size: 34px;
+  line-height: 1;
+}
+.job-match-score span {
+  color: #738078;
+  font-size: 12px;
+}
+.job-match-score .MuiTypography-caption {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+.job-match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.job-match-item {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto;
+  align-items: flex-start !important;
+  gap: 10px;
+  padding: 10px 12px !important;
+  text-align: left;
+  border: 1px solid #e2e7df !important;
+  border-radius: 8px !important;
+}
+.job-match-item:hover,
+.job-match-item.Mui-focusVisible {
+  border-color: #203b37 !important;
+  background: #f7f9f3;
+}
+.job-match-go {
+  margin-top: 2px;
+  color: #738078;
+}
+.job-match-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Landing: long resume titles on the Continue button */
+.continue-button {
+  max-width: 100%;
+}
+.continue-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .start-options {
+    grid-template-columns: 1fr;
+  }
+}
+/* ---------- UI polish ---------- */
+/* Top bar: highlight the current page */
+.topbar-links .MuiButton-root.active {
+  color: #203b37;
+  background: #eef3e6;
+}
+.topbar-links .MuiButton-root.active .MuiButton-startIcon {
+  color: #5c8a1e;
+}
+
+/* Editor header: back, title, save status and actions on one row */
+.editor-topline {
+  gap: 12px;
+  padding: 6px 0 16px;
+}
+.editor-back {
+  margin-left: -8px !important;
+}
+.editor-title-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.resume-title-input {
+  width: 100%;
+  max-width: 560px;
+}
+.resume-title-input .MuiInput-root::before {
+  border-bottom-color: transparent !important;
+}
+.resume-title-input .MuiInput-root:hover::before {
+  border-bottom-color: #c9d2cb !important;
+}
+.resume-title-input input {
+  padding: 2px 0 3px;
+  font-size: 22px;
+}
+.editor-title-block .save-status {
+  width: fit-content;
+  cursor: default;
+}
+.editor-actions {
+  flex: none;
+}
+
+/* Sidebar: collapsible groups */
+.sidebar-group-toggle {
+  width: 100%;
+  justify-content: space-between !important;
+  padding: 4px !important;
+  border-radius: 6px;
+}
+.sidebar-group-toggle:hover {
+  background: #f3f6f1;
+}
+.sidebar-group-toggle .panel-eyebrow {
+  margin: 0 !important;
+}
+.chevron {
+  color: #84928b;
+  transform: rotate(-90deg);
+  transition: transform 0.2s;
+}
+.chevron.is-open {
+  transform: none;
+}
+
+/* Look & feel controls */
+.design-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 2px 4px;
+}
+.design-label {
+  margin-bottom: 6px !important;
+  color: #5d6b65;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.template-tile {
+  display: flex !important;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 2px 5px !important;
+  border: 1px solid #e2e7df !important;
+  border-radius: 6px !important;
+  background: #f3f6f1 !important;
+}
+.template-tile:hover {
+  border-color: #9fb0a5 !important;
+}
+.template-tile.is-selected {
+  border-color: #203b37 !important;
+  background: #fff !important;
+  box-shadow: inset 0 0 0 1px #203b37;
+}
+.template-tile-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: #50645c;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Miniature template renders (editor tiles and the Start dialog) */
+.template-thumbnail {
+  flex: none;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 2px 8px #293e311f;
+}
+.template-thumbnail-page {
+  width: 794px;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.template-thumbnail-page .resume-document {
+  width: 794px;
+  min-height: 1123px;
+  box-shadow: none;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: inline-grid !important;
+  place-items: center;
+  border-radius: 50% !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  box-shadow: inset 0 0 0 1px #0000001a;
+  cursor: pointer;
+}
+.swatch.is-selected {
+  outline: 2px solid #203b37;
+  outline-offset: 2px;
+}
+.swatch-custom {
+  background: conic-gradient(#e0533d, #e8b23a, #5fae57, #3b82c4, #8a5bc4, #e0533d);
+}
+.swatch-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.swatch-custom:focus-within {
+  outline: 2px solid #203b37;
+  outline-offset: 2px;
+}
+.design-segmented .MuiToggleButton-root {
+  min-height: 30px;
+  padding: 4px 2px;
+  color: #50645c;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: none;
+}
+.design-segmented .MuiToggleButton-root.Mui-selected,
+.design-segmented .MuiToggleButton-root.Mui-selected:hover {
+  background: #203b37;
+  color: #fff;
+}
+.font-sample-sans {
+  font-family: "DM Sans Variable", sans-serif;
+}
+.font-sample-serif {
+  font-family: Georgia, serif;
+}
+.font-sample-system {
+  font-family: Arial, sans-serif;
+}
+
+/* Collapsible form sections */
+.form-section {
+  position: relative;
+}
+.section-collapse {
+  position: absolute !important;
+  top: 14px;
+  right: 14px;
+  color: #84928b !important;
+}
+.form-section > h2,
+.form-section-heading {
+  padding-right: 36px;
+}
+.form-section.is-collapsed
+  > :not(h2):not(.form-section-heading):not(.section-collapse) {
+  display: none !important;
+}
+.form-section.is-collapsed .form-section-heading {
+  margin-bottom: 0;
+}
+.form-section.is-collapsed .form-section-heading .MuiTypography-body2 {
+  display: none;
+}
+.form-section.is-collapsed h2 {
+  margin: 0;
+}
+
+/* Dashboard: real resume thumbnails */
+.resume-card {
+  display: flex;
+  flex-direction: column;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.resume-card:hover {
+  border-color: #c4cfc6;
+  box-shadow: 0 6px 20px #23362b14;
+}
+.resume-card-preview {
+  height: 210px;
+  display: flex !important;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+  overflow: hidden;
+  text-decoration: none;
+}
+.thumb-frame {
+  width: 254px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
+  background: #fff;
+  box-shadow: 0 6px 22px #293e3124;
+  transition: transform 0.2s;
+}
+.resume-card-preview:hover .thumb-frame,
+.resume-card-preview:focus-visible .thumb-frame {
+  transform: translateY(-3px);
+}
+.thumb-page {
+  width: 794px;
+  transform: scale(0.32);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.thumb-page .resume-document {
+  width: 794px;
+  min-height: 1123px;
+  box-shadow: none;
+}
+.resume-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.resume-card-body > .MuiButton-root:last-child {
+  margin-top: auto;
+}
+.add-resume-card {
+  min-height: 300px !important;
+  border-radius: 8px !important;
+}
+.add-resume-card:hover {
+  border-color: #527166 !important;
+  background: #eef2ea !important;
+}
+
+/* Landing navigation never wraps */
+.landing-nav .MuiButton-root {
+  white-space: nowrap;
+}
+
+/* ATS checker input panel */
+.ats-input-panel h2:not(:first-child) {
+  margin-top: 26px;
+}
+.ats-input-panel textarea {
+  max-height: 50vh;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 600px) {
+  .hide-on-phone {
+    display: none;
+  }
+  .art-index {
+    display: none;
+  }
+  .editor-topline {
+    flex-wrap: wrap;
+  }
+  .editor-title-block {
+    flex-basis: calc(100% - 56px);
+  }
+  .editor-title-block .save-status {
+    order: 0;
+    width: auto;
+    padding-left: 0;
+  }
+  .resume-title-input input {
+    font-size: 19px;
+  }
+  .add-resume-card {
+    min-height: 96px !important;
+  }
+}
 @media (max-width: 1200px) {
   .editor-workspace {
-    grid-template-columns: 185px minmax(340px, 1fr);
+    grid-template-columns: 205px minmax(340px, 1fr);
   }
   .preview-panel {
     position: static;
     grid-column: 2;
   }
-  .preview-scroll {
+  .preview-scroll,
+  .job-match-scroll {
     max-height: 80vh;
   }
 }
@@ -1118,6 +1773,8 @@ body {
   }
   .editor-navigation {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
   .section-nav-list {
     display: grid;
@@ -1126,7 +1783,8 @@ body {
   .preview-panel {
     grid-column: 1;
   }
-  .preview-scroll {
+  .preview-scroll,
+  .job-match-scroll {
     max-height: none;
   }
   .ats-layout {
@@ -1344,6 +2002,7 @@ body {
   .editor-navigation,
   .editor-form-column,
   .preview-panel-heading,
+  .job-match-scroll,
   .editor-alert,
   .MuiDialog-root {
     display: none !important;
@@ -1365,7 +2024,9 @@ body {
     max-width: 210mm;
     margin: 0 auto;
   }
-  .preview-scroll {
+  .preview-scroll,
+  .preview-panel .preview-scroll.is-hidden {
+    display: flex !important;
     max-height: none;
     overflow: visible;
     padding: 0;
