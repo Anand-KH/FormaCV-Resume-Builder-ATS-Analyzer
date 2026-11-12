@@ -916,6 +916,137 @@ body {
   border-bottom: 1px solid #d9e0d9;
   padding-bottom: 4px;
 }
+/* Profile photo: each template places and shapes it differently.
+   Sizes are in em so they follow the Text size setting. ATS never shows one. */
+.document-header.has-photo {
+  display: flex;
+  align-items: center;
+  gap: 1.6em;
+}
+.document-header-text {
+  flex: 1;
+  min-width: 0;
+}
+.document-photo {
+  flex: none;
+  width: 6.4em;
+  height: 6.4em;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #eef1ec;
+}
+/* Modern: circle on the left (the default above). */
+/* Classic: square portrait on the right */
+.template-classic .document-header.has-photo {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+}
+.template-classic .document-photo {
+  width: 7.2em;
+  height: 7.2em;
+  border-radius: 4px;
+}
+/* Editorial: tall portrait on the right */
+.template-editorial .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-editorial .document-photo {
+  width: 6.2em;
+  height: 8em;
+  border-radius: 0;
+  object-position: center 25%;
+}
+/* Studio: circle with a white ring inside the header card */
+.template-studio .document-photo {
+  border: 4px solid #fff;
+  box-shadow: 0 4px 14px #1f2b2724;
+}
+/* Signature: rounded square beside the accent bar */
+.template-signature .document-photo {
+  border-radius: 14px;
+}
+/* Professional: circle with an accent ring, on the right */
+.template-professional .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-professional .document-photo {
+  padding: 3px;
+  border: 3px solid var(--resume-accent);
+  background: #fff;
+}
+/* Minimal: small circle on the right */
+.template-minimal .document-header.has-photo {
+  flex-direction: row-reverse;
+}
+.template-minimal .document-photo {
+  width: 4.8em;
+  height: 4.8em;
+}
+/* Executive: centered above the name */
+.template-executive .document-header.has-photo {
+  flex-direction: column;
+  gap: 0.9em;
+}
+.template-executive .document-header-text {
+  width: 100%;
+}
+.template-executive .document-photo {
+  width: 7em;
+  height: 7em;
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 5px var(--resume-accent);
+}
+
+/* Photo upload control in the editor */
+.photo-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.photo-field-avatar {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 10px !important;
+  background: #eef1ec !important;
+  color: #8a9a92 !important;
+}
+.photo-field-avatar-wrap {
+  position: relative;
+  flex: none;
+}
+.photo-field-delete {
+  position: absolute !important;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 1px solid #e2e7df !important;
+  background: #fff !important;
+  color: #b3261e !important;
+  font-size: 14px !important;
+  box-shadow: 0 1px 4px #23362b26;
+}
+.photo-field-delete:hover {
+  background: #fdecea !important;
+}
+.photo-field-body {
+  flex: 1;
+  min-width: 0;
+}
+.photo-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 8px;
+}
+.photo-field-actions .MuiFormControlLabel-label {
+  font-size: 13px;
+}
+
 /* An explicit heading style wins over a template's default casing. */
 .resume-document.heading-uppercase .document-section h3 {
   text-transform: uppercase;
@@ -1171,7 +1302,7 @@ body {
 }
 .template-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
 }
 .template-choice {
@@ -1287,6 +1418,327 @@ body {
 @media (max-width: 720px) {
   .start-options {
     grid-template-columns: 1fr;
+  }
+}
+/* ---------- UI polish ---------- */
+/* Top bar: highlight the current page */
+.topbar-links .MuiButton-root.active {
+  color: #203b37;
+  background: #eef3e6;
+}
+.topbar-links .MuiButton-root.active .MuiButton-startIcon {
+  color: #5c8a1e;
+}
+
+/* Editor header: back, title, save status and actions on one row */
+.editor-topline {
+  gap: 12px;
+  padding: 6px 0 16px;
+}
+.editor-back {
+  margin-left: -8px !important;
+}
+.editor-title-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.resume-title-input {
+  width: 100%;
+  max-width: 560px;
+}
+.resume-title-input .MuiInput-root::before {
+  border-bottom-color: transparent !important;
+}
+.resume-title-input .MuiInput-root:hover::before {
+  border-bottom-color: #c9d2cb !important;
+}
+.resume-title-input input {
+  padding: 2px 0 3px;
+  font-size: 22px;
+}
+.editor-title-block .save-status {
+  width: fit-content;
+  cursor: default;
+}
+.editor-actions {
+  flex: none;
+}
+
+/* Sidebar: collapsible groups */
+.sidebar-group-toggle {
+  width: 100%;
+  justify-content: space-between !important;
+  padding: 4px !important;
+  border-radius: 6px;
+}
+.sidebar-group-toggle:hover {
+  background: #f3f6f1;
+}
+.sidebar-group-toggle .panel-eyebrow {
+  margin: 0 !important;
+}
+.chevron {
+  color: #84928b;
+  transform: rotate(-90deg);
+  transition: transform 0.2s;
+}
+.chevron.is-open {
+  transform: none;
+}
+
+/* Look & feel controls */
+.design-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 2px 4px;
+}
+.design-label {
+  margin-bottom: 6px !important;
+  color: #5d6b65;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.template-tile {
+  display: flex !important;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 2px 5px !important;
+  border: 1px solid #e2e7df !important;
+  border-radius: 6px !important;
+  background: #f3f6f1 !important;
+}
+.template-tile:hover {
+  border-color: #9fb0a5 !important;
+}
+.template-tile.is-selected {
+  border-color: #203b37 !important;
+  background: #fff !important;
+  box-shadow: inset 0 0 0 1px #203b37;
+}
+.template-tile-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: #50645c;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Miniature template renders (editor tiles and the Start dialog) */
+.template-thumbnail {
+  flex: none;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 2px 8px #293e311f;
+}
+.template-thumbnail-page {
+  width: 794px;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.template-thumbnail-page .resume-document {
+  width: 794px;
+  min-height: 1123px;
+  box-shadow: none;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: inline-grid !important;
+  place-items: center;
+  border-radius: 50% !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  box-shadow: inset 0 0 0 1px #0000001a;
+  cursor: pointer;
+}
+.swatch.is-selected {
+  outline: 2px solid #203b37;
+  outline-offset: 2px;
+}
+.swatch-custom {
+  background: conic-gradient(#e0533d, #e8b23a, #5fae57, #3b82c4, #8a5bc4, #e0533d);
+}
+.swatch-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.swatch-custom:focus-within {
+  outline: 2px solid #203b37;
+  outline-offset: 2px;
+}
+.design-segmented .MuiToggleButton-root {
+  min-height: 30px;
+  padding: 4px 2px;
+  color: #50645c;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: none;
+}
+.design-segmented .MuiToggleButton-root.Mui-selected,
+.design-segmented .MuiToggleButton-root.Mui-selected:hover {
+  background: #203b37;
+  color: #fff;
+}
+.font-sample-sans {
+  font-family: "DM Sans Variable", sans-serif;
+}
+.font-sample-serif {
+  font-family: Georgia, serif;
+}
+.font-sample-system {
+  font-family: Arial, sans-serif;
+}
+
+/* Collapsible form sections */
+.form-section {
+  position: relative;
+}
+.section-collapse {
+  position: absolute !important;
+  top: 14px;
+  right: 14px;
+  color: #84928b !important;
+}
+.form-section > h2,
+.form-section-heading {
+  padding-right: 36px;
+}
+.form-section.is-collapsed
+  > :not(h2):not(.form-section-heading):not(.section-collapse) {
+  display: none !important;
+}
+.form-section.is-collapsed .form-section-heading {
+  margin-bottom: 0;
+}
+.form-section.is-collapsed .form-section-heading .MuiTypography-body2 {
+  display: none;
+}
+.form-section.is-collapsed h2 {
+  margin: 0;
+}
+
+/* Dashboard: real resume thumbnails */
+.resume-card {
+  display: flex;
+  flex-direction: column;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.resume-card:hover {
+  border-color: #c4cfc6;
+  box-shadow: 0 6px 20px #23362b14;
+}
+.resume-card-preview {
+  height: 210px;
+  display: flex !important;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+  overflow: hidden;
+  text-decoration: none;
+}
+.thumb-frame {
+  width: 254px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
+  background: #fff;
+  box-shadow: 0 6px 22px #293e3124;
+  transition: transform 0.2s;
+}
+.resume-card-preview:hover .thumb-frame,
+.resume-card-preview:focus-visible .thumb-frame {
+  transform: translateY(-3px);
+}
+.thumb-page {
+  width: 794px;
+  transform: scale(0.32);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.thumb-page .resume-document {
+  width: 794px;
+  min-height: 1123px;
+  box-shadow: none;
+}
+.resume-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.resume-card-body > .MuiButton-root:last-child {
+  margin-top: auto;
+}
+.add-resume-card {
+  min-height: 300px !important;
+  border-radius: 8px !important;
+}
+.add-resume-card:hover {
+  border-color: #527166 !important;
+  background: #eef2ea !important;
+}
+
+/* Landing navigation never wraps */
+.landing-nav .MuiButton-root {
+  white-space: nowrap;
+}
+
+/* ATS checker input panel */
+.ats-input-panel h2:not(:first-child) {
+  margin-top: 26px;
+}
+.ats-input-panel textarea {
+  max-height: 50vh;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 600px) {
+  .hide-on-phone {
+    display: none;
+  }
+  .art-index {
+    display: none;
+  }
+  .editor-topline {
+    flex-wrap: wrap;
+  }
+  .editor-title-block {
+    flex-basis: calc(100% - 56px);
+  }
+  .editor-title-block .save-status {
+    order: 0;
+    width: auto;
+    padding-left: 0;
+  }
+  .resume-title-input input {
+    font-size: 19px;
+  }
+  .add-resume-card {
+    min-height: 96px !important;
   }
 }
 @media (max-width: 1200px) {

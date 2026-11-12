@@ -220,8 +220,8 @@ export function AtsPage() {
             <TextField
               fullWidth
               multiline
-              minRows={14}
-              maxRows={24}
+              minRows={10}
+              maxRows={18}
               label="Paste job description"
               placeholder="Include responsibilities, qualifications, and skills…"
               value={jobDescription}

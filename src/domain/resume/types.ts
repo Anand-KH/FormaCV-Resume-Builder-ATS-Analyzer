@@ -31,6 +31,8 @@ export type ResumeDesign = {
   margin: "compact" | "standard" | "wide";
   headingStyle: "uppercase" | "title" | "underline";
   summaryAlignment: "left" | "center" | "right" | "justify";
+  /** Show the profile photo (when one is uploaded). Defaults to true. */
+  showPhoto?: boolean;
 };
 
 const experienceSchema = z.object({
@@ -72,6 +74,8 @@ export const resumeSchema = z.object({
     location: z.string(),
     website: z.string(),
     linkedin: z.string(),
+    /** Profile photo as a compressed JPEG data URL. */
+    photo: z.string().optional(),
   }),
   summary: z.string(),
   experience: z.array(experienceSchema),
@@ -109,6 +113,7 @@ export const resumeSchema = z.object({
     margin: z.enum(["compact", "standard", "wide"]),
     headingStyle: z.enum(["uppercase", "title", "underline"]),
     summaryAlignment: z.enum(["left", "center", "right", "justify"]),
+    showPhoto: z.boolean().optional(),
   }),
 });
 
@@ -159,6 +164,17 @@ export function createEmptyResume(template?: ResumeTemplate): Resume {
     hiddenSections: [],
     design: { ...defaultDesign, ...(template ? { template } : {}) },
   };
+}
+
+/** Templates that never show a photo (ATS parsers can't read images). */
+export const photoFreeTemplates: ResumeTemplate[] = ["ats"];
+
+export function shouldShowPhoto(resume: Resume) {
+  return (
+    Boolean(resume.profile.photo) &&
+    resume.design.showPhoto !== false &&
+    !photoFreeTemplates.includes(resume.design.template)
+  );
 }
 
 export const templateOptions: { value: ResumeTemplate; label: string }[] = [

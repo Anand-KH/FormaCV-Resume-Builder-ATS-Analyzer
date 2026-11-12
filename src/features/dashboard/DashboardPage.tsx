@@ -35,7 +35,11 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import type { Resume } from "../../domain/resume/types";
+import {
+  normalizeResume,
+  templateOptions,
+  type Resume,
+} from "../../domain/resume/types";
 import {
   resumeRepository,
   type ResumeBackup,
@@ -46,6 +50,7 @@ import {
 } from "../ats-checker/analyze";
 import type { EditorLocationState } from "../resume-editor/EditorPage";
 import { useStartResume } from "../start/startResumeContext";
+import { ResumeDocument } from "../templates/ResumeDocument";
 
 /** How long the "Undo" option stays available after a delete. */
 const UNDO_WINDOW_MS = 8000;
@@ -55,6 +60,34 @@ function jobMatchScore(resume: Resume) {
   return description.trim().length > MIN_JOB_DESCRIPTION_LENGTH
     ? analyzeResume(resume, description).score
     : null;
+}
+
+const relativeTime = new Intl.RelativeTimeFormat(undefined, {
+  numeric: "auto",
+});
+const timeUnits: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 31_536_000],
+  ["month", 2_592_000],
+  ["week", 604_800],
+  ["day", 86_400],
+  ["hour", 3_600],
+  ["minute", 60],
+];
+
+/** "Edited 5 minutes ago", "Edited yesterday", … */
+function editedLabel(iso: string) {
+  const seconds = (Date.parse(iso) - Date.now()) / 1000;
+  for (const [unit, size] of timeUnits)
+    if (Math.abs(seconds) >= size)
+      return `Edited ${relativeTime.format(Math.round(seconds / size), unit)}`;
+  return "Edited just now";
+}
+
+function templateLabel(resume: Resume) {
+  return (
+    templateOptions.find((option) => option.value === resume.design.template)
+      ?.label ?? "Custom"
+  );
 }
 
 function downloadJson(fileName: string, data: unknown) {
@@ -332,14 +365,17 @@ export function DashboardPage() {
             const score = jobMatchScore(resume);
             return (
               <Paper className="resume-card" key={resume.id} variant="outlined">
-                <Box className="resume-card-preview">
-                  <div className={`mini-sheet mini-${resume.design.template}`}>
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <i />
+                <Box
+                  component={RouterLink}
+                  to={`/resume/${resume.id}`}
+                  className="resume-card-preview"
+                  aria-label={`Open ${resume.title || "Untitled resume"}`}
+                >
+                  {/* A scaled-down render of the real resume; not interactive. */}
+                  <div className="thumb-frame" inert aria-hidden="true">
+                    <div className="thumb-page">
+                      <ResumeDocument resume={normalizeResume(resume)} />
+                    </div>
                   </div>
                 </Box>
                 <Box className="resume-card-body">
@@ -373,8 +409,12 @@ export function DashboardPage() {
                     direction="row"
                     sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}
                   >
-                    <Typography className="updated-label" variant="caption">
-                      Edited {new Date(resume.updatedAt).toLocaleDateString()}
+                    <Typography
+                      className="updated-label"
+                      variant="caption"
+                      title={new Date(resume.updatedAt).toLocaleString()}
+                    >
+                      {templateLabel(resume)} · {editedLabel(resume.updatedAt)}
                     </Typography>
                     {score !== null && (
                       <Chip

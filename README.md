@@ -11,6 +11,7 @@ FormaCV is a browser-based resume builder and ATS checker. Create a resume from 
 - Organize and reorder resume sections, and hide sections from the final document.
 - Choose from nine templates: Modern, Classic, ATS, Editorial, Studio, Signature, Professional, Minimal, and Executive.
 - Adjust accent color, typeface, text size, line spacing, margins, heading style, and section alignment.
+- Add an optional profile photo. It is cropped and compressed in the browser, and each template places it differently (the ATS template never shows it).
 - Add multiple experience, education, project, certification, achievement, and custom-section entries.
 - Format experience and project descriptions as bullets, numbered lists, dashes, or plain text.
 - Preview changes live, open website and LinkedIn links, and print or save the resume as a PDF.

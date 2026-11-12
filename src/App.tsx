@@ -25,6 +25,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { lazy, Suspense, useState } from "react";
 import {
   Link as RouterLink,
+  NavLink,
   Navigate,
   Outlet,
   Route,
@@ -111,7 +112,7 @@ function ProductShell() {
             {links.map((item) => (
               <Button
                 key={item.to}
-                component={RouterLink}
+                component={NavLink}
                 to={item.to}
                 color="inherit"
                 startIcon={item.icon}
@@ -139,7 +140,7 @@ function ProductShell() {
         >
           <List>
             {links.map((item) => (
-              <ListItemButton key={item.to} component={RouterLink} to={item.to}>
+              <ListItemButton key={item.to} component={NavLink} to={item.to}>
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.label} />
               </ListItemButton>

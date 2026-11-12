@@ -38,7 +38,7 @@ export function LandingPage() {
           <Button component={RouterLink} to="/" className="landing-brand" startIcon={<AutoAwesome />}>Forma<span>CV</span></Button>
           <Stack direction="row" spacing={1}>
             <Button component={RouterLink} to="/ats" color="inherit">ATS checker</Button>
-            <Button component={RouterLink} to="/dashboard" variant="contained" color="primary" endIcon={<ArrowForward />}>Open workspace</Button>
+            <Button component={RouterLink} to="/dashboard" variant="contained" color="primary" endIcon={<ArrowForward />}><span className="hide-on-phone">Open&nbsp;</span>workspace</Button>
           </Stack>
         </Box>
         <Box className="landing-hero">

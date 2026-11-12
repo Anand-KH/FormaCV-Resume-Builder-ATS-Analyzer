@@ -2,6 +2,7 @@ import {
   Add,
   ArrowBack,
   DragIndicator,
+  ExpandMore,
   History,
   Insights,
   PictureAsPdf,
@@ -13,15 +14,15 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
+  ButtonBase,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
   IconButton,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -40,7 +41,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import {
   Link as RouterLink,
   useLocation,
@@ -54,7 +55,6 @@ import {
   isResumeTemplate,
   normalizeResume,
   resumeSchema,
-  templateOptions,
   type Resume,
 } from "../../domain/resume/types";
 import { resumeRepository } from "../../domain/resume/repository";
@@ -65,7 +65,9 @@ import {
 } from "../ats-checker/analyze";
 import { NEW_RESUME_ID } from "../start/startResumeContext";
 import { ResumeDocument } from "../templates/ResumeDocument";
+import { DesignControls } from "./DesignControls";
 import { JobMatchPanel } from "./JobMatchPanel";
+import { PhotoField } from "./PhotoField";
 
 /** Autosave snapshots at most this often; opening history always snapshots. */
 const AUTOSAVE_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
@@ -193,6 +195,62 @@ function SortableRow({
   );
 }
 
+const NARROW_LAYOUT_QUERY = "(max-width: 820px)";
+
+/** A collapsible group in the editor sidebar; starts closed on narrow screens. */
+function SidebarGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(
+    () =>
+      typeof window === "undefined" ||
+      !window.matchMedia(NARROW_LAYOUT_QUERY).matches,
+  );
+  return (
+    <Box className="sidebar-group">
+      <ButtonBase
+        className="sidebar-group-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Typography className="panel-eyebrow">{title}</Typography>
+        <ExpandMore
+          fontSize="small"
+          className={`chevron${open ? " is-open" : ""}`}
+        />
+      </ButtonBase>
+      <Collapse in={open}>{children}</Collapse>
+    </Box>
+  );
+}
+
+function SectionToggle({
+  label,
+  collapsed,
+  onToggle,
+}: {
+  label: string;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <IconButton
+      className="section-collapse"
+      size="small"
+      aria-expanded={!collapsed}
+      aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
+      title={collapsed ? "Expand" : "Collapse"}
+      onClick={onToggle}
+    >
+      <ExpandMore className={`chevron${collapsed ? "" : " is-open"}`} />
+    </IconButton>
+  );
+}
+
 function Field({
   label,
   name,
@@ -239,6 +297,9 @@ export function EditorPage() {
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { control, register, reset, setValue, getValues } = useForm<Resume>({
     resolver: zodResolver(resumeSchema),
     mode: "onBlur",
@@ -363,13 +424,47 @@ export function EditorPage() {
       ? analyzeResume(currentResume, jobDescription)
       : null;
 
+  const formSectionTitles: Record<string, string> = {
+    ...sectionLabels,
+    profile: "Personal details",
+    summary: "Professional summary",
+    custom: "Custom sections",
+  };
+
+  function sectionClass(id: string) {
+    return `form-section${collapsedSections.has(id) ? " is-collapsed" : ""}`;
+  }
+
+  function toggleCollapsed(id: string) {
+    setCollapsedSections((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** Expand a form section (if collapsed), scroll to it, and optionally focus it. */
+  function revealSection(id: string, focus = false) {
+    setCollapsedSections((previous) => {
+      if (!previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
+    requestAnimationFrame(() => {
+      const section = document.getElementById(`edit-${id}`);
+      if (!section) return;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (focus)
+        section
+          .querySelector<HTMLElement>("input, textarea")
+          ?.focus({ preventScroll: true });
+    });
+  }
+
   function jumpToSection(target: AtsTarget) {
-    const section = document.getElementById(`edit-${target}`);
-    if (!section) return;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-    section
-      .querySelector<HTMLElement>("input, textarea")
-      ?.focus({ preventScroll: true });
+    revealSection(target, true);
   }
 
   function reorderSections(event: DragEndEvent) {
@@ -452,23 +547,36 @@ export function EditorPage() {
   return (
     <Box className="editor-page">
       <Box className="editor-topline">
-        <Button
-          component={RouterLink}
-          to="/dashboard"
-          startIcon={<ArrowBack />}
-          color="inherit"
-        >
-          All resumes
-        </Button>
-        <Box className={`save-status${isDraft ? " is-draft" : ""}`}>
-          <span className="save-dot" />
-          {isDraft
-            ? "Not saved yet · start typing to save"
-            : lastSaved
-              ? `Saved at ${lastSaved}`
-              : "Saving changes automatically"}
+        <Tooltip title="All resumes">
+          <IconButton
+            component={RouterLink}
+            to="/dashboard"
+            aria-label="Back to all resumes"
+            className="editor-back"
+          >
+            <ArrowBack />
+          </IconButton>
+        </Tooltip>
+        <Box className="editor-title-block">
+          <TextField
+            className="resume-title-input"
+            variant="standard"
+            placeholder="Untitled resume"
+            slotProps={{ htmlInput: { "aria-label": "Resume title" } }}
+            {...register("title")}
+          />
+          <Tooltip title="Resumes are stored in this browser only. Export a backup from My resumes to keep a copy or move to another device.">
+            <Box className={`save-status${isDraft ? " is-draft" : ""}`}>
+              <span className="save-dot" />
+              {isDraft
+                ? "Not saved yet · start typing to save"
+                : lastSaved
+                  ? `Saved in this browser at ${lastSaved}`
+                  : "Saved in this browser"}
+            </Box>
+          </Tooltip>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} className="editor-actions">
           <Button
             startIcon={<History />}
             onClick={() => void openHistory()}
@@ -502,20 +610,9 @@ export function EditorPage() {
           {notice}
         </Alert>
       )}
-      <Box className="editor-title-row">
-        <TextField
-          className="resume-title-input"
-          variant="standard"
-          aria-label="Resume title"
-          {...register("title")}
-        />
-        <Tooltip title="Resumes are stored in this browser only. Export a backup from My resumes to keep a copy or move to another device.">
-          <Chip size="small" label="Saved in this browser" variant="outlined" />
-        </Tooltip>
-      </Box>
       <Box className="editor-workspace">
         <Paper className="editor-navigation" variant="outlined">
-          <Typography className="panel-eyebrow">YOUR DOCUMENT</Typography>
+          <SidebarGroup title="YOUR DOCUMENT">
           <DndContext onDragEnd={reorderSections}>
             <SortableContext
               items={currentSectionOrder}
@@ -525,12 +622,7 @@ export function EditorPage() {
                 {currentSectionOrder.map((id) => (
                   <SortableRow key={id} id={id} className="section-nav-row">
                     <Button
-                      onClick={() =>
-                        document.getElementById(`edit-${id}`)?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        })
-                      }
+                      onClick={() => revealSection(id)}
                       className="section-nav-button"
                       color="inherit"
                     >
@@ -560,155 +652,20 @@ export function EditorPage() {
               </Stack>
             </SortableContext>
           </DndContext>
-          <Divider sx={{ my: 2 }} />
-          <Typography className="panel-eyebrow">LOOK & FEEL</Typography>
-          <Controller
-            control={control}
-            name="design.template"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Template"
-                fullWidth
-                size="small"
-                sx={{ mb: 1.5 }}
-              >
-                {templateOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.accentColor"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="Accent color"
-                type="color"
-                fullWidth
-                size="small"
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.fontSize"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Text size"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-                onChange={(event) => field.onChange(Number(event.target.value))}
-              >
-                <MenuItem value={9}>Compact</MenuItem>
-                <MenuItem value={10}>Standard</MenuItem>
-                <MenuItem value={11}>Comfortable</MenuItem>
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.fontFamily"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Typeface"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-              >
-                <MenuItem value="sans">Sans serif</MenuItem>
-                <MenuItem value="serif">Serif</MenuItem>
-                <MenuItem value="system">Arial</MenuItem>
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.spacing"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Line spacing"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-              >
-                <MenuItem value="compact">Compact</MenuItem>
-                <MenuItem value="comfortable">Comfortable</MenuItem>
-                <MenuItem value="relaxed">Relaxed</MenuItem>
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.margin"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Page margins"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-              >
-                <MenuItem value="compact">Narrow</MenuItem>
-                <MenuItem value="standard">Standard</MenuItem>
-                <MenuItem value="wide">Wide</MenuItem>
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.headingStyle"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Heading style"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-              >
-                <MenuItem value="uppercase">Uppercase</MenuItem>
-                <MenuItem value="title">Title case</MenuItem>
-                <MenuItem value="underline">Underlined</MenuItem>
-              </TextField>
-            )}
-          />
-          <Controller
-            control={control}
-            name="design.summaryAlignment"
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Section alignment"
-                fullWidth
-                size="small"
-                sx={{ mt: 1.5 }}
-              >
-                <MenuItem value="left">Left</MenuItem>
-                <MenuItem value="center">Center</MenuItem>
-                <MenuItem value="right">Right</MenuItem>
-                <MenuItem value="justify">Justify</MenuItem>
-              </TextField>
-            )}
-          />
+          </SidebarGroup>
+          <Divider sx={{ my: 1.5 }} />
+          <SidebarGroup title="LOOK & FEEL">
+            <DesignControls control={control} />
+          </SidebarGroup>
         </Paper>
 
         <Box className="editor-form-column">
-          <Paper className="form-section" id="edit-profile" variant="outlined">
+          <Paper className={sectionClass("profile")} id="edit-profile" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["profile"]}
+              collapsed={collapsedSections.has("profile")}
+              onToggle={() => toggleCollapsed("profile")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Personal details</Typography>
@@ -717,6 +674,17 @@ export function EditorPage() {
                 </Typography>
               </Box>
             </Box>
+            <PhotoField
+              photo={currentResume.profile.photo}
+              showPhoto={currentResume.design.showPhoto !== false}
+              template={currentResume.design.template}
+              onPhotoChange={(photo) =>
+                setValue("profile.photo", photo, { shouldDirty: true })
+              }
+              onShowPhotoChange={(show) =>
+                setValue("design.showPhoto", show, { shouldDirty: true })
+              }
+            />
             <Box className="form-grid">
               <Field
                 label="Full name"
@@ -747,7 +715,12 @@ export function EditorPage() {
               />
             </Box>
           </Paper>
-          <Paper className="form-section" id="edit-summary" variant="outlined">
+          <Paper className={sectionClass("summary")} id="edit-summary" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["summary"]}
+              collapsed={collapsedSections.has("summary")}
+              onToggle={() => toggleCollapsed("summary")}
+            />
             <Typography variant="h2">Professional summary</Typography>
             <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
               A concise introduction to the value you bring.
@@ -761,11 +734,12 @@ export function EditorPage() {
               placeholder="Describe your experience, strengths, and direction."
             />
           </Paper>
-          <Paper
-            className="form-section"
-            id="edit-experience"
-            variant="outlined"
-          >
+          <Paper className={sectionClass("experience")} id="edit-experience" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["experience"]}
+              collapsed={collapsedSections.has("experience")}
+              onToggle={() => toggleCollapsed("experience")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Experience</Typography>
@@ -889,11 +863,12 @@ export function EditorPage() {
               </Button>
             </Box>
           </Paper>
-          <Paper
-            className="form-section"
-            id="edit-education"
-            variant="outlined"
-          >
+          <Paper className={sectionClass("education")} id="edit-education" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["education"]}
+              collapsed={collapsedSections.has("education")}
+              onToggle={() => toggleCollapsed("education")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Education</Typography>
@@ -960,7 +935,12 @@ export function EditorPage() {
               </Button>
             </Box>
           </Paper>
-          <Paper className="form-section" id="edit-skills" variant="outlined">
+          <Paper className={sectionClass("skills")} id="edit-skills" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["skills"]}
+              collapsed={collapsedSections.has("skills")}
+              onToggle={() => toggleCollapsed("skills")}
+            />
             <Typography variant="h2">Technical skills</Typography>
             <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
               Separate skills with commas.
@@ -981,7 +961,12 @@ export function EditorPage() {
               }
             />
           </Paper>
-          <Paper className="form-section" id="edit-projects" variant="outlined">
+          <Paper className={sectionClass("projects")} id="edit-projects" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["projects"]}
+              collapsed={collapsedSections.has("projects")}
+              onToggle={() => toggleCollapsed("projects")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Projects</Typography>
@@ -1085,11 +1070,12 @@ export function EditorPage() {
               </Button>
             </Box>
           </Paper>
-          <Paper
-            className="form-section"
-            id="edit-certifications"
-            variant="outlined"
-          >
+          <Paper className={sectionClass("certifications")} id="edit-certifications" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["certifications"]}
+              collapsed={collapsedSections.has("certifications")}
+              onToggle={() => toggleCollapsed("certifications")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Certifications</Typography>
@@ -1151,11 +1137,12 @@ export function EditorPage() {
               </Button>
             </Box>
           </Paper>
-          <Paper
-            className="form-section"
-            id="edit-achievements"
-            variant="outlined"
-          >
+          <Paper className={sectionClass("achievements")} id="edit-achievements" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["achievements"]}
+              collapsed={collapsedSections.has("achievements")}
+              onToggle={() => toggleCollapsed("achievements")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Achievements</Typography>
@@ -1216,11 +1203,12 @@ export function EditorPage() {
               </Button>
             </Box>
           </Paper>
-          <Paper
-            className="form-section"
-            id="edit-languages"
-            variant="outlined"
-          >
+          <Paper className={sectionClass("languages")} id="edit-languages" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["languages"]}
+              collapsed={collapsedSections.has("languages")}
+              onToggle={() => toggleCollapsed("languages")}
+            />
             <Typography variant="h2">Languages</Typography>
             <TextField
               className="simple-list-input"
@@ -1239,7 +1227,12 @@ export function EditorPage() {
               }
             />
           </Paper>
-          <Paper className="form-section" id="edit-custom" variant="outlined">
+          <Paper className={sectionClass("custom")} id="edit-custom" variant="outlined">
+            <SectionToggle
+              label={formSectionTitles["custom"]}
+              collapsed={collapsedSections.has("custom")}
+              onToggle={() => toggleCollapsed("custom")}
+            />
             <Box className="form-section-heading">
               <Box>
                 <Typography variant="h2">Custom sections</Typography>

@@ -1,6 +1,10 @@
 import { Box, Typography } from "@mui/material";
 import type { CSSProperties, ReactNode } from "react";
-import type { Resume, SectionId } from "../../domain/resume/types";
+import {
+  shouldShowPhoto,
+  type Resume,
+  type SectionId,
+} from "../../domain/resume/types";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -34,6 +38,7 @@ export function ResumeDocument({
   compact?: boolean;
 }) {
   const hidden = new Set(resume.hiddenSections);
+  const showPhoto = shouldShowPhoto(resume);
   const fontFamilies = {
     sans: '"DM Sans Variable", sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -215,7 +220,15 @@ export function ResumeDocument({
         } as CSSProperties
       }
     >
-      <Box className="document-header">
+      <Box className={`document-header${showPhoto ? " has-photo" : ""}`}>
+        {showPhoto && (
+          <img
+            className="document-photo"
+            src={resume.profile.photo}
+            alt={resume.profile.name ? `Photo of ${resume.profile.name}` : "Profile photo"}
+          />
+        )}
+        <Box className="document-header-text">
         <Typography component="h2">
           {resume.profile.name || "Your name"}
         </Typography>
@@ -239,6 +252,7 @@ export function ResumeDocument({
             ))}
           </Box>
         )}
+        </Box>
       </Box>
       {resume.summary && (
         <Section title={summaryTitle}>

@@ -29,6 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { resumeRepository } from "../../domain/resume/repository";
 import { templateOptions, type Resume } from "../../domain/resume/types";
 import { importResumeFile } from "../resume-import/parseResume";
+import { TemplateThumbnail } from "../templates/TemplateThumbnail";
 import { newResumePath, StartResumeContext } from "./startResumeContext";
 
 type Step = "choose" | "templates" | "import-preview";
@@ -163,14 +164,11 @@ export function StartResumeProvider({ children }: { children: ReactNode }) {
                   className="template-choice"
                   onClick={() => go(newResumePath(option.value))}
                 >
-                  <div className={`mini-sheet mini-${option.value}`}>
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <i />
-                  </div>
+                  <TemplateThumbnail
+                    template={option.value}
+                    width={132}
+                    height={170}
+                  />
                   <Typography>{option.label}</Typography>
                 </ButtonBase>
               ))}
