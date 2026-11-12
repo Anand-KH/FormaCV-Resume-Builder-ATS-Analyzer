@@ -998,6 +998,35 @@ body {
     0 0 0 5px var(--resume-accent);
 }
 
+/* OCR offer and PDF guide */
+.ocr-offer {
+  margin-top: 4px;
+}
+.ocr-offer .MuiAlert-message {
+  width: 100%;
+}
+.ocr-offer-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ocr-offer-progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pdf-steps {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.pdf-steps li + li {
+  margin-top: 4px;
+}
+
 /* Photo upload control in the editor */
 .photo-field {
   display: flex;

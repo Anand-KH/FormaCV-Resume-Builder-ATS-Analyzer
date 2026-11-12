@@ -28,7 +28,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { resumeRepository } from "../../domain/resume/repository";
 import { templateOptions, type Resume } from "../../domain/resume/types";
-import { importResumeFile } from "../resume-import/parseResume";
+import { OcrOffer } from "../resume-import/OcrOffer";
+import {
+  importResumeFile,
+  PdfWithoutTextError,
+} from "../resume-import/parseResume";
 import { TemplateThumbnail } from "../templates/TemplateThumbnail";
 import { newResumePath, StartResumeContext } from "./startResumeContext";
 
@@ -39,6 +43,11 @@ export function StartResumeProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<Step>("choose");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
+  const [ocrCandidate, setOcrCandidate] = useState<{
+    file: File;
+    error: PdfWithoutTextError;
+  } | null>(null);
+  const [importedViaOcr, setImportedViaOcr] = useState(false);
   const [importPreview, setImportPreview] = useState<Resume | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -65,11 +74,17 @@ export function StartResumeProvider({ children }: { children: ReactNode }) {
     event.currentTarget.value = "";
     if (!file) return;
     setImportError("");
+    setOcrCandidate(null);
     setImporting(true);
     try {
       setImportPreview(await importResumeFile(file));
+      setImportedViaOcr(false);
       setStep("import-preview");
     } catch (error) {
+      if (error instanceof PdfWithoutTextError) {
+        setOcrCandidate({ file, error });
+        return;
+      }
       setImportError(
         error instanceof Error
           ? error.message
@@ -121,6 +136,19 @@ export function StartResumeProvider({ children }: { children: ReactNode }) {
             >
               {importError}
             </Alert>
+          )}
+          {ocrCandidate && step === "choose" && (
+            <OcrOffer
+              file={ocrCandidate.file}
+              error={ocrCandidate.error}
+              onDismiss={() => setOcrCandidate(null)}
+              onResult={(resume) => {
+                setOcrCandidate(null);
+                setImportPreview(resume);
+                setImportedViaOcr(true);
+                setStep("import-preview");
+              }}
+            />
           )}
 
           {step === "choose" && (
@@ -177,6 +205,12 @@ export function StartResumeProvider({ children }: { children: ReactNode }) {
 
           {step === "import-preview" && importPreview && (
             <>
+              {importedViaOcr && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  This resume was read with OCR. Check names, dates, emails,
+                  and links carefully; some characters may be misread.
+                </Alert>
+              )}
               <Alert severity="info" sx={{ mb: 2 }}>
                 The file was read in this browser. Review every extracted field
                 in the editor; document formatting and complex layouts may not

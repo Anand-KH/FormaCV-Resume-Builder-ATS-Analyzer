@@ -24,7 +24,11 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { resumeRepository } from "../../domain/resume/repository";
 import type { Resume } from "../../domain/resume/types";
-import { importResumeFile } from "../resume-import/parseResume";
+import { OcrOffer } from "../resume-import/OcrOffer";
+import {
+  importResumeFile,
+  PdfWithoutTextError,
+} from "../resume-import/parseResume";
 import type { EditorLocationState } from "../resume-editor/EditorPage";
 import {
   analyzeResume,
@@ -43,6 +47,11 @@ export function AtsPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [ocrCandidate, setOcrCandidate] = useState<{
+    file: File;
+    error: PdfWithoutTextError;
+  } | null>(null);
+  const [readViaOcr, setReadViaOcr] = useState(false);
   const [editError, setEditError] = useState("");
   const [storageError, setStorageError] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -72,14 +81,20 @@ export function AtsPage() {
     event.currentTarget.value = "";
     if (!file) return;
     setFileError("");
+    setOcrCandidate(null);
     setResult(null);
     setUploading(true);
     try {
       setUploadedResume(await importResumeFile(file));
       setUploadedFileName(file.name);
+      setReadViaOcr(false);
     } catch (error) {
       setUploadedResume(null);
       setUploadedFileName("");
+      if (error instanceof PdfWithoutTextError) {
+        setOcrCandidate({ file, error });
+        return;
+      }
       setFileError(
         error instanceof Error
           ? error.message
@@ -209,6 +224,26 @@ export function AtsPage() {
                   </Typography>
                 )}
                 {fileError && <Alert severity="error">{fileError}</Alert>}
+                {ocrCandidate && (
+                  <OcrOffer
+                    file={ocrCandidate.file}
+                    error={ocrCandidate.error}
+                    onDismiss={() => setOcrCandidate(null)}
+                    onResult={(resume) => {
+                      setOcrCandidate(null);
+                      setUploadedResume(resume);
+                      setUploadedFileName(ocrCandidate.file.name);
+                      setReadViaOcr(true);
+                    }}
+                  />
+                )}
+                {readViaOcr && uploadedResume && (
+                  <Alert severity="info">
+                    Read with OCR. Your score reflects the recognized text, but
+                    real ATS software would see no text in this PDF. Save it
+                    again with Save as PDF before applying.
+                  </Alert>
+                )}
               </Box>
             )}
             <Typography variant="h2" sx={{ mt: 3 }}>

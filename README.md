@@ -28,7 +28,7 @@ FormaCV is a browser-based resume builder and ATS checker. Create a resume from 
 - **Forms and validation:** React Hook Form, Zod
 - **Drag-and-drop:** dnd-kit
 - **Local storage:** IndexedDB with `idb`
-- **Document import:** PDF.js (PDF), Mammoth (DOCX), browser File API (TXT)
+- **Document import:** PDF.js (PDF), Mammoth (DOCX), browser File API (TXT), Tesseract.js (OCR for PDFs without text)
 - **Testing and quality:** Vitest, Testing Library, ESLint, TypeScript
 
 ## Requirements
@@ -73,7 +73,8 @@ Open the local URL printed by Vite in your terminal.
 
 ## Import and ATS notes
 
-- PDF imports require selectable text. Scanned PDFs and image-only documents are not OCR-supported.
+- PDFs without selectable text (scanned images, or text saved as shapes, which is common with "Microsoft Print to PDF") can be read with built-in OCR (Tesseract.js). OCR runs in the browser; the engine and English model (about 7 MB, cached after first use) are served from the app itself. Review OCR results, as some characters may be misread.
+- To export a resume that ATS software can read, choose **Save as PDF** as the print destination, not "Microsoft Print to PDF". The editor shows this guidance before opening the print window.
 - Resume import is limited to 20 MB per file.
 - ATS analysis runs in the browser and requires a job description to calculate role-specific keyword coverage.
 - The ATS score is an explainable heuristic, not a prediction or guarantee of how a specific employer's applicant-tracking system will rank a resume.

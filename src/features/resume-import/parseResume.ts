@@ -1,4 +1,5 @@
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import type { OcrProgress } from "./ocr";
 import {
   createEmptyResume,
   type Resume,
@@ -350,6 +351,62 @@ export function mapResumeText(
   return resume;
 }
 
+export type PdfWithoutTextReason = "outlined" | "scanned" | "empty";
+
+/**
+ * The PDF has no text layer, so nothing can be read without OCR. `reason`
+ * says why: letters saved as vector shapes (typical of "Microsoft Print to
+ * PDF"), a scanned image, or an empty document.
+ */
+export class PdfWithoutTextError extends Error {
+  readonly reason: PdfWithoutTextReason;
+
+  constructor(reason: PdfWithoutTextReason) {
+    super(
+      reason === "outlined"
+        ? "This PDF has no selectable text: its letters were saved as shapes, which often happens with “Microsoft Print to PDF”. ATS software can’t read it either. Save it again with Save as PDF (in Word: File → Save As → PDF), upload the .docx instead, or read it with OCR."
+        : reason === "scanned"
+          ? "This PDF is a scanned image with no selectable text. ATS software can’t read it either. Upload the original .docx, or read it with OCR."
+          : "This PDF appears to be empty.",
+    );
+    this.name = "PdfWithoutTextError";
+    this.reason = reason;
+  }
+
+  /** Whether OCR could recover text from this PDF. */
+  get ocrCanHelp() {
+    return this.reason !== "empty";
+  }
+}
+
+type PdfJs = typeof import("pdfjs-dist");
+
+/** Work out why a PDF has no text: drawn shapes, scanned images, or nothing. */
+async function classifyTextlessPdf(
+  pdfjs: PdfJs,
+  document: Awaited<ReturnType<PdfJs["getDocument"]>["promise"]>,
+): Promise<PdfWithoutTextReason> {
+  const { OPS } = pdfjs;
+  const imageOps = new Set<number>([
+    OPS.paintImageXObject,
+    OPS.paintInlineImageXObject,
+    OPS.paintImageMaskXObject,
+  ]);
+  let images = 0;
+  let paths = 0;
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const { fnArray } = await (
+      await document.getPage(pageNumber)
+    ).getOperatorList();
+    for (const fn of fnArray) {
+      if (imageOps.has(fn)) images += 1;
+      else if (fn === OPS.constructPath) paths += 1;
+    }
+  }
+  if (images > 0) return "scanned";
+  return paths > 50 ? "outlined" : "empty";
+}
+
 export async function extractResumeText(file: File) {
   if (file.size > MAX_FILE_SIZE)
     throw new Error("Choose a file smaller than 20 MB.");
@@ -364,7 +421,8 @@ export async function extractResumeText(file: File) {
       await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
     ).value;
   } else if (extension === "pdf") {
-    const { GlobalWorkerOptions, getDocument } = await import("pdfjs-dist");
+    const pdfjs = await import("pdfjs-dist");
+    const { GlobalWorkerOptions, getDocument } = pdfjs;
     GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     const loadingTask = getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
@@ -379,23 +437,39 @@ export async function extractResumeText(file: File) {
       );
     }
     text = pages.join("\n");
+    if (normalizeText(text).length < 20) {
+      const reason = await classifyTextlessPdf(pdfjs, document);
+      await loadingTask.destroy();
+      throw new PdfWithoutTextError(reason);
+    }
     await loadingTask.destroy();
   } else {
     throw new Error("Choose a PDF, DOCX, or TXT resume.");
   }
 
   const cleaned = normalizeText(text);
-  if (cleaned.length < 20) {
-    if (extension === "pdf")
-      throw new Error(
-        "No selectable text was found. This PDF may be scanned; OCR import is not available yet.",
-      );
+  if (cleaned.length < 20)
     throw new Error("No readable resume text was found in this file.");
-  }
   return cleaned;
 }
 
-export async function importResumeFile(file: File) {
+export type ImportOptions = {
+  /** Read a text-less PDF with OCR instead of its (missing) text layer. */
+  ocr?: boolean;
+  onOcrProgress?: (progress: OcrProgress) => void;
+};
+
+export async function importResumeFile(
+  file: File,
+  options: ImportOptions = {},
+) {
+  if (options.ocr) {
+    const { ocrPdf } = await import("./ocr");
+    const text = normalizeText(await ocrPdf(file, options.onOcrProgress));
+    if (text.length < 20)
+      throw new Error("OCR could not find readable text in this PDF.");
+    return mapResumeText(text, file.name);
+  }
   const text = await extractResumeText(file);
   return mapResumeText(text, file.name);
 }

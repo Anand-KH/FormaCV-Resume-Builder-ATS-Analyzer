@@ -68,6 +68,8 @@ import { ResumeDocument } from "../templates/ResumeDocument";
 import { DesignControls } from "./DesignControls";
 import { JobMatchPanel } from "./JobMatchPanel";
 import { PhotoField } from "./PhotoField";
+import { shouldSkipPdfGuide } from "./pdfGuide";
+import { SavePdfDialog } from "./SavePdfDialog";
 
 /** Autosave snapshots at most this often; opening history always snapshots. */
 const AUTOSAVE_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
@@ -297,6 +299,7 @@ export function EditorPage() {
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [pdfGuideOpen, setPdfGuideOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     () => new Set(),
   );
@@ -537,8 +540,15 @@ export function EditorPage() {
     });
   }
 
+  function openPrintWindow() {
+    setPdfGuideOpen(false);
+    // Let the dialog close before the print window takes over.
+    window.setTimeout(() => window.print(), 150);
+  }
+
   function printResume() {
-    window.print();
+    if (shouldSkipPdfGuide()) window.print();
+    else setPdfGuideOpen(true);
   }
 
   const currentSectionOrder = currentResume.sectionOrder;
@@ -565,7 +575,10 @@ export function EditorPage() {
             slotProps={{ htmlInput: { "aria-label": "Resume title" } }}
             {...register("title")}
           />
-          <Tooltip title="Resumes are stored in this browser only. Export a backup from My resumes to keep a copy or move to another device.">
+          <Tooltip
+            describeChild
+            title="Resumes are stored in this browser only. Export a backup from My resumes to keep a copy or move to another device."
+          >
             <Box className={`save-status${isDraft ? " is-draft" : ""}`}>
               <span className="save-dot" />
               {isDraft
@@ -584,7 +597,10 @@ export function EditorPage() {
           >
             History
           </Button>
-          <Tooltip title="Opens the print dialog. Choose Save as PDF as the destination.">
+          <Tooltip
+            describeChild
+            title="Shows how to save a PDF that ATS software can read, then opens the print window."
+          >
             <Button
               variant="contained"
               startIcon={<PictureAsPdf />}
@@ -1327,6 +1343,11 @@ export function EditorPage() {
           </Box>
         </Paper>
       </Box>
+      <SavePdfDialog
+        open={pdfGuideOpen}
+        onClose={() => setPdfGuideOpen(false)}
+        onPrint={openPrintWindow}
+      />
       <Dialog
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
