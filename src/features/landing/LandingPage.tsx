@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { resumeRepository } from '../../domain/resume/repository'
 import type { Resume } from '../../domain/resume/types'
+import { usePageMeta, DEFAULT_TITLE } from '../../seo'
 import { useStartResume } from '../start/startResumeContext'
 
 const highlights = [
@@ -14,6 +15,7 @@ const highlights = [
 
 export function LandingPage() {
   const { openStartResume } = useStartResume()
+  usePageMeta({ title: DEFAULT_TITLE, path: '/' })
   // Resumes live in this browser's IndexedDB, so a visitor who has used the app
   // here before gets a "continue" shortcut. No account or server involved.
   const [lastResume, setLastResume] = useState<Resume | null>(null)

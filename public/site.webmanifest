@@ -1,0 +1,13 @@
+{
+  "name": "FormaCV — Resume Builder & ATS Checker",
+  "short_name": "FormaCV",
+  "description": "Free resume builder and ATS resume checker that runs in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f1",
+  "theme_color": "#203b37",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

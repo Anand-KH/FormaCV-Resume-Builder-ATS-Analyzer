@@ -64,6 +64,7 @@ import {
   type AtsTarget,
 } from "../ats-checker/analyze";
 import { NEW_RESUME_ID } from "../start/startResumeContext";
+import { usePageMeta } from "../../seo";
 import { ResumeDocument } from "../templates/ResumeDocument";
 import { DesignControls } from "./DesignControls";
 import { JobMatchPanel } from "./JobMatchPanel";
@@ -313,6 +314,11 @@ export function EditorPage() {
   const customSections = useFieldArray({ control, name: "customSections" });
   const values = useWatch({ control });
   const serializedValues = JSON.stringify(values);
+  // Private, per-browser page: keep it out of search results.
+  usePageMeta({
+    title: `${values?.title?.trim() || "Resume"} | FormaCV`,
+    noindex: true,
+  });
 
   useEffect(() => {
     // A draft's first save swaps the URL to its real id; the form already holds it.

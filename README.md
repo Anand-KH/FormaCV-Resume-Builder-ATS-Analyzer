@@ -73,7 +73,7 @@ npm install
 npm run deploy
 ```
 
-This runs the production build (which copies the OCR assets into `dist/tesseract/` and creates `dist/200.html` so deep links such as `/dashboard` load the app), then uploads `dist/` with the [Surge CLI](https://surge.sh/help/getting-started-with-surge) (`npm install --global surge`). The domain comes from `public/CNAME`. Deploy from a branch that contains the changes you want to publish.
+This runs the production build (which copies the OCR assets into `dist/tesseract/` and creates `dist/200.html` so deep links such as `/dashboard` load the app), then uploads `dist/` with the [Surge CLI](https://surge.sh/help/getting-started-with-surge) (`npm install --global surge`). The domain comes from `public/CNAME`; the same address is set as `VITE_SITE_URL` in `.env` for canonical URLs, social previews, and the sitemap (`public/sitemap.xml`, `public/robots.txt`). Update all of them if the domain changes. Deploy from a branch that contains the changes you want to publish.
 
 ## Application routes
 

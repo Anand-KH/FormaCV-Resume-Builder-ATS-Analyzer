@@ -24,6 +24,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { resumeRepository } from "../../domain/resume/repository";
 import type { Resume } from "../../domain/resume/types";
+import { usePageMeta } from "../../seo";
 import { OcrOffer } from "../resume-import/OcrOffer";
 import {
   importResumeFile,
@@ -37,6 +38,12 @@ import {
 } from "./analyze";
 
 export function AtsPage() {
+  usePageMeta({
+    title: "Free ATS Resume Checker: Score Your Resume Against Any Job | FormaCV",
+    description:
+      "Check your resume against a job description for free. Get an ATS score, matched and missing keywords, and clear fixes. Upload a PDF, DOCX, or TXT; it is analyzed in your browser and never uploaded.",
+    path: "/ats",
+  });
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [source, setSource] = useState<"saved" | "upload">("saved");

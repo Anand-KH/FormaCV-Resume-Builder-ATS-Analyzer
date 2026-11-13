@@ -49,6 +49,7 @@ import {
   MIN_JOB_DESCRIPTION_LENGTH,
 } from "../ats-checker/analyze";
 import type { EditorLocationState } from "../resume-editor/EditorPage";
+import { usePageMeta } from "../../seo";
 import { useStartResume } from "../start/startResumeContext";
 import { ResumeDocument } from "../templates/ResumeDocument";
 
@@ -102,6 +103,8 @@ function downloadJson(fileName: string, data: unknown) {
 }
 
 export function DashboardPage() {
+  // Private, per-browser page: keep it out of search results.
+  usePageMeta({ title: "My resumes | FormaCV", noindex: true });
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);

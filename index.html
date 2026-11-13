@@ -2,13 +2,84 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FormaCV — Resume builder &amp; ATS checker</title>
-    <meta name="description" content="Build, format, and ATS-check your resume in the browser. Your documents stay on this device." />
+
+    <!-- Primary metadata (per-page values are updated at runtime by src/seo.ts) -->
+    <title>FormaCV — Free Resume Builder &amp; ATS Resume Checker</title>
+    <meta
+      name="description"
+      content="Build a professional resume for free with 9 templates, check it against any job description with an ATS score, and export a PDF that ATS software can read. No sign-up: your data stays in your browser."
+    />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#203b37" />
+    <meta name="application-name" content="FormaCV" />
+
+    <!-- Icons and install metadata -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph (LinkedIn, Facebook, WhatsApp, Slack) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FormaCV" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:title" content="FormaCV — Free Resume Builder &amp; ATS Resume Checker" />
+    <meta
+      property="og:description"
+      content="Build a polished resume, match it to the job with an ATS score, and export a PDF that ATS software can read. Free, no sign-up, private in your browser."
+    />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FormaCV: free resume builder and ATS checker, showing a resume with a 94 ATS match score" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FormaCV — Free Resume Builder &amp; ATS Resume Checker" />
+    <meta
+      name="twitter:description"
+      content="Build a polished resume, match it to the job with an ATS score, and export a PDF that ATS software can read. Free, no sign-up, private in your browser."
+    />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta name="twitter:image:alt" content="FormaCV: free resume builder and ATS checker, showing a resume with a 94 ATS match score" />
+
+    <!-- Structured data: tells search engines this is a free web app -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "FormaCV",
+        "url": "%VITE_SITE_URL%/",
+        "image": "%VITE_SITE_URL%/og-image.png",
+        "description": "Free resume builder and ATS resume checker. Build a resume with 9 templates, score it against a job description, and export an ATS-readable PDF. Runs in the browser with no sign-up.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "Requires JavaScript and a modern browser with IndexedDB.",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Resume builder with 9 templates",
+          "ATS resume checker with job-description keyword matching",
+          "Import PDF, DOCX, and TXT resumes, with OCR for scanned PDFs",
+          "Optional profile photo",
+          "Export an ATS-readable PDF",
+          "Private: resumes are stored in your browser"
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>FormaCV — Free Resume Builder &amp; ATS Resume Checker</h1>
+      <p>
+        Build a professional resume with 9 templates, check it against a job
+        description, and export a PDF that ATS software can read. FormaCV runs
+        in your browser, so please enable JavaScript to use it.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
