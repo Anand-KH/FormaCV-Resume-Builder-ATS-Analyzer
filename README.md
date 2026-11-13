@@ -62,6 +62,18 @@ Open the local URL printed by Vite in your terminal.
 | `npm run typecheck` | Run the TypeScript compiler without emitting files |
 | `npm run lint`      | Run ESLint                                         |
 | `npm test`          | Run the Vitest test suite                          |
+| `npm run deploy`    | Build and publish to https://formacv.surge.sh      |
+
+## Deployment
+
+The app is a static site hosted on [Surge](https://surge.sh) at https://formacv.surge.sh. Surge only serves uploaded files; it does not build from GitHub, so deploy from your machine:
+
+```bash
+npm install
+npm run deploy
+```
+
+This runs the production build (which copies the OCR assets into `dist/tesseract/` and creates `dist/200.html` so deep links such as `/dashboard` load the app), then uploads `dist/` with the [Surge CLI](https://surge.sh/help/getting-started-with-surge) (`npm install --global surge`). The domain comes from `public/CNAME`. Deploy from a branch that contains the changes you want to publish.
 
 ## Application routes
 

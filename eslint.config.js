@@ -6,7 +6,8 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  // public/tesseract holds generated, minified OCR vendor files.
+  globalIgnores(["dist", "public/tesseract"]),
   {
     files: ["**/*.{js,jsx}"],
     extends: [

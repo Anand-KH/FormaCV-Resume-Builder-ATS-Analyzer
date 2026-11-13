@@ -8,11 +8,13 @@
     "dev": "vite",
     "prebuild": "node scripts/copy-ocr-assets.mjs",
     "build": "vite build",
+    "postbuild": "node scripts/spa-fallback.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview",
-    "copy-ocr-assets": "node scripts/copy-ocr-assets.mjs"
+    "copy-ocr-assets": "node scripts/copy-ocr-assets.mjs",
+    "deploy": "npm run build && surge ./dist formacv.surge.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
